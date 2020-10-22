@@ -36,4 +36,4 @@ Starting State:
 All observations are assigned a uniform random value in [1..2]
 
 ### Video Box
-![alt text](https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/drone_1.png width="350")
+![alt text](https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/drone_1.png)
