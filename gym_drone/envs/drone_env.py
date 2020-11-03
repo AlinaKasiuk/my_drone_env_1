@@ -40,21 +40,22 @@ class DroneEnv(gym.Env):
     Actions:
         Type: Discrete(8)
         Num   Action
-        0     MoveForward
-        1     MoveBackward
-        2     MoveLeft
-        3     MoveRight      
-        4     MoveUp
-        5     MoveDown    
-        6     RotateLeft
-        5     RotateRight         
-
+        0     None
+        1     MoveForward
+        2     MoveBackward
+        3     MoveLeft
+        4     MoveRight      
+        5     MoveUp
+        6     MoveDown    
+        7     RotateLeft
+        8     RotateRight         
+python drone_1.py
     Reward:
     ***    
 
     Starting State:
     ***
-        All observations are assigned a uniform random value in [0..1]
+        All observations are assigned a uniform random value in [1..2]
 
     Episode Termination:
     ***
@@ -82,12 +83,16 @@ class DroneEnv(gym.Env):
         self.z_max = int(4)        
         self.min_terr_angle = 0
         self.max_terr_angle = 2*math.pi #terrain angle - something that is observed
+        
+        self.cam_angle = 0.25*math.pi
  
     
         self.delta_pos=1
         self.delta_angle=0.25*math.pi
         # ???
         self.state = None #initiate state holder
+        self.cameraspot=None
+        
         self.episode_over = False
         self.current_episode = -1 
         self.current_timestep = 0 # -1 because timestep increments before action
@@ -134,6 +139,42 @@ class DroneEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    def _get_cameraspot(self):
+        
+        x, y, z, terr_angle = self.state
+        terr_angle=0
+        c=z
+        #*math.tan(self.cam_angle))
+        if  x-c<self.x_min:
+            x_cam_min=self.x_min
+        else:
+            x_cam_min=x-c
+            
+        if  x+c>self.x_max:
+            x_cam_max=self.x_max
+        else:
+            x_cam_max=x+c   
+             
+        if  y-c<self.y_min:
+            y_cam_min=self.y_min
+        else:
+            y_cam_min=y-c
+            
+        if  y+c>self.y_max:
+            y_cam_max=self.y_max
+        else:
+            y_cam_max=y+c
+
+
+        p1=[x_cam_min,y_cam_max]
+        p2=[x_cam_min,y_cam_min]
+        p3=[x_cam_max,y_cam_min]
+        p4=[x_cam_max,y_cam_max]
+                
+        tmp_cameraspot=[p1,p2,p3,p4]
+
+        return tmp_cameraspot    
+    
     
     def step(self, action):
         
@@ -141,6 +182,7 @@ class DroneEnv(gym.Env):
         assert self.action_space.contains(action), err_msg    
     
         x, y, z, terr_angle = self.state
+        terr_angle=0
         
         if terr_angle>2*math.pi:
             terr_angle=terr_angle-2*math.pi
@@ -185,15 +227,21 @@ class DroneEnv(gym.Env):
                 terr_angle=terr_angle+self.delta_angle
         
         self.state=(x, y, z, terr_angle) 
+        self.cameraspot = self._get_cameraspot()
+        
+        self.observation=(self.state,self.cameraspot)
         reward=self.relevance_map[int(x)][int(y)]
       
-        return np.array(self.state), reward, done, {}
+      
+        return np.array(self.observation), reward, done, {}
 
 
     def reset(self):
-        self.state = self.np_random.uniform(low=1, high=2, size=(4,))
+        self.state = self.np_random.randint(low=1, high=3, size=(4,))
+        self.cameraspot = self._get_cameraspot()
+        
         self.steps_beyond_done = None
-        return np.array(self.state)  
+        return np.array(self.state),  np.array(self.cameraspot), {} 
 
 
     def render(self, mode='human'):
