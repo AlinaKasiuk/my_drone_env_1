@@ -80,7 +80,7 @@ python drone_1.py
         self.y_min = int(0)
         self.y_max = int(4)
         self.z_min = int(0)
-        self.z_max = int(4)        
+        self.z_max = int(50)        
         self.min_terr_angle = 0
         self.max_terr_angle = 2*math.pi #terrain angle - something that is observed
         
@@ -235,11 +235,17 @@ python drone_1.py
       
         return np.array(self.observation), reward, done, {}
 
+    def get_map(self,rel_map):
+        self.relevance_map=rel_map
+        ncol, nrow = rel_map.shape
+        self.x_max=ncol-1
+        self.y_max=nrow-1
+        return self.x_max,self.y_max
+        
 
     def reset(self):
-        self.state = self.np_random.randint(low=1, high=3, size=(4,))
+        self.state = self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot = self._get_cameraspot()
-        
         self.steps_beyond_done = None
         return np.array(self.state),  np.array(self.cameraspot), {} 
 
@@ -275,8 +281,8 @@ python drone_1.py
 
         # Edit the pole polygon vertex
         x = self.state
-        dronex = x[0] * scale + screen_width / 2.0
-        droney = x[1] * scale + screen_width / 2.0        
+        dronex = x[0] * scale 
+        droney = x[1] * scale         
         self.drone_trans.set_translation(dronex, droney)
         self.drone_trans.set_rotation(x[3])
 
