@@ -4,6 +4,7 @@ import time
 from gym_drone.envs.drone_env import DroneEnv
 
 
+# alina
 env = DroneEnv()
 
 done = False
