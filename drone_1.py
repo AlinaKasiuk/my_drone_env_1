@@ -1,24 +1,15 @@
-import gym
-import gym_pull
-
-env_dict = gym.envs.registration.registry.env_specs.copy()
-for env in env_dict:
-    if 'drone-v0' in env:
-        print("Remove {} from registry".format(env))
-        del gym.envs.registration.registry.env_specs[env]
-
-import gym_drone
-
 import numpy as np
+import time
 
-#gym_pull.pull('github.com/jnc96/drone-gym')
+from gym_drone.envs.drone_env import DroneEnv
 
-env = gym.make('drone-v0')
+
+env = DroneEnv()
 
 done = False
 cnt = 0
 
-observation, cameraspot, _= env.reset()
+observation, cameraspot, _ = env.reset()
 print('Coordinates:')
 print(observation)
 print('Camera spot:')
@@ -32,6 +23,7 @@ print (x,y)
 
 while not done:
     env.render()
+    time.sleep(2)
     cnt += 1
     
     action = env.action_space.sample()

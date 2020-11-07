@@ -68,8 +68,9 @@ python drone_1.py
         'video.frames_per_second': 50
     }
 
-    def __init__(self):
-    
+    # TODO en el reset, escoger estado inicial aleatoriamente de las base stations
+    def __init__(self, base_stations):
+        self.bs = base_stations
         # debug vars
     
         self.__version__ = "2.1.1"
