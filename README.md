@@ -42,3 +42,4 @@ A matrix value
 
 ### Starting State:
 We should start on one of the base stations choosen randomly
+<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/map.png" width="500">
