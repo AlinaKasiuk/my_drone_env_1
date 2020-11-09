@@ -44,9 +44,9 @@ A matrix value
 We should start on one of the base stations choosen randomly
 
 
-<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/map.png" width="800">
+<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/examples/map.png" width="800">
 
 ### Examples:
 
-<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/example_2.png" width="400">
-<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/example_1.png" width="400">
+<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/examples/example_2.png" width="400">
+<img src="https://github.com/AlinaKasiuk/my_drone_env_1/blob/main/examples/example_1.png" width="400">
