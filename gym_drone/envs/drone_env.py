@@ -115,8 +115,10 @@ class DroneEnv(gym.Env):
         """    
     
         # TODO: check observation_space. Battery - ?
+        # Muy be it should be changed after changing the map
         
         # Here, low is the lower limit of observation range, and high is the higher limit.
+        
         low_ob = np.array([self.x_min,  # x-pos
                            self.y_min,  # y-pos
                            self.z_min]) # z-pos
@@ -138,6 +140,7 @@ class DroneEnv(gym.Env):
         self.seed()
         self.viewer = None
         self.state = None
+        self.state_matrix = None
     
         self.steps_beyond_done = None                       
 
@@ -250,6 +253,10 @@ class DroneEnv(gym.Env):
 
     def reset(self):
         self.state = [30,30,2,100]
+        #self.state_matrix =
+        
+        
+        
         #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot, r = self._get_cameraspot()
         
@@ -267,34 +274,35 @@ class DroneEnv(gym.Env):
         x = self.state
         dronex = x[0] * scale 
         droney = x[1] * scale
-        red = x[3]
-        green = 0
+        dronez = (x[2]*2+1) * scale
+        red = (100-x[3])/100
+        green = x[3]/100
         blue = 0
     
         drone_width = 40.0
         drone_len = 40.0
     
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
-            
+            from gym.envs.classic_control import rendering 
             self.viewer = rendering.Viewer(screen_width, screen_height)
             l, r, t, b = -drone_width / 2, drone_width / 2, drone_len / 2, -drone_len / 2
             drone = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            drone.set_color(red, green, blue)
             self.drone_trans = rendering.Transform()
+            self.drone_color = drone.attrs[0]
             drone.add_attr(self.drone_trans)
             self.viewer.add_geom(drone)
             self.axle = rendering.make_circle(5)
             self.axle.add_attr(self.drone_trans)
-            self.axle.set_color(.5, .5, .8)
+            self.axle.set_color(0, 0, 0)
             self.viewer.add_geom(self.axle)
 
         if self.state is None:
             return None
 
         # Edit the pole polygon vertex
-       
+        self.drone_color.vec4 = ((red, green, blue, 1.0))       
         self.drone_trans.set_translation(dronex, droney)
+        self.drone_trans.set_scale(dronez/50, dronez/50)
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 
