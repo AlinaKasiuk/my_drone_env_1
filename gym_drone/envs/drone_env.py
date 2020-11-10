@@ -265,8 +265,8 @@ class DroneEnv(gym.Env):
 
 
     def render(self, mode='human'):
-        screen_width = 500
-        screen_height = 500
+        screen_width = 825
+        screen_height = 775
 
         world_width = self.x_max- self.x_min
         scale = screen_width/world_width
@@ -283,13 +283,23 @@ class DroneEnv(gym.Env):
         drone_len = 40.0
     
         if self.viewer is None:
-            from gym.envs.classic_control import rendering 
+            from gym_drone.envs import rendering 
+            #from examples import print_map
             self.viewer = rendering.Viewer(screen_width, screen_height)
+            #self.viewer.get_map()
+            #print_map.PrintMap()
+        
+            
             l, r, t, b = -drone_width / 2, drone_width / 2, drone_len / 2, -drone_len / 2
             drone = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            map_img = rendering.Image('map.png', screen_width, screen_height)
             self.drone_trans = rendering.Transform()
+            self.map_trans = rendering.Transform()
             self.drone_color = drone.attrs[0]
             drone.add_attr(self.drone_trans)
+            map_img.add_attr(self.map_trans)
+            self.map_trans.set_translation(screen_width/2, screen_height/2)
+            self.viewer.add_geom(map_img)
             self.viewer.add_geom(drone)
             self.axle = rendering.make_circle(5)
             self.axle.add_attr(self.drone_trans)
