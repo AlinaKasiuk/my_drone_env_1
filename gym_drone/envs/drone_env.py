@@ -187,6 +187,15 @@ class DroneEnv(gym.Env):
             for j in range(y_cam_min,y_cam_max+1):
                 r+=self.relevance_map[i,j]
                 
+                
+        ncol=self.x_max+1
+        nrow=self.y_max+1
+        
+        cam_matrix =np.zeros((ncol,nrow))
+        cam_matrix[x_cam_min:x_cam_max+1,y_cam_min:y_cam_max+1]=battery
+
+        self.state_matrix=cam_matrix
+                
         return tmp_cameraspot,r 
     
     
@@ -204,7 +213,7 @@ class DroneEnv(gym.Env):
             or y > self.y_max
             or z < self.z_min
             or z > self.z_max
-            or battery<0
+            or battery<=0
             )  
          
         battery-=self.delta_battery
@@ -237,11 +246,11 @@ class DroneEnv(gym.Env):
         self.state=(x, y, z, battery) 
         self.cameraspot, r = self._get_cameraspot()
         
-        self.observation=self.state
+        self.observation=self.state_matrix, self.state, self.cameraspot
 
         reward=r
       
-        return np.array(self.observation), reward, done, {}
+        return self.observation, reward, done, {}
 
     def get_map(self,rel_map):
         self.relevance_map=rel_map
@@ -253,15 +262,14 @@ class DroneEnv(gym.Env):
 
     def reset(self):
         self.state = [30,30,2,100]
-        #self.state_matrix =
-        
+                
         
         
         #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot, r = self._get_cameraspot()
         
         self.steps_beyond_done = None
-        return np.array(self.state),  np.array(self.cameraspot), r 
+        return self.state_matrix,  np.array(self.cameraspot), r 
 
 
     def render(self, mode='human'):
