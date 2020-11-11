@@ -198,7 +198,6 @@ class DroneEnv(gym.Env):
                 
         return tmp_cameraspot,r 
     
-    
     def step(self, action):
         
         err_msg = "%r (%s) invalid" % (action, type(action))
@@ -257,11 +256,35 @@ class DroneEnv(gym.Env):
         ncol, nrow = rel_map.shape
         self.x_max=ncol-1
         self.y_max=nrow-1
-        return self.x_max,self.y_max
+        
+    def get_bases(self,bs):
+        self.base_stations=bs
+        ncol, nrow = bs.shape
+        k=1
+        x=[]
+        y=[]
+        for i in range(0,ncol-1):
+            for j in range(0,nrow-1):
+                if bs[i][j]==100:
+                    x.append(i)
+                    y.append(j)
+                    #k+=1
+        self.base_x=np.array(x)
+        self.base_y=np.array(y)
+        Coord=np.array([self.base_x,self.base_y])
+        self.base_coord=Coord.T
+        
+        return self.base_coord
+                    
+                    
         
 
     def reset(self):
-        self.state = [30,30,2,100]
+        m,n=self.base_coord.shape
+        i=np.random.randint(0,m-1)
+        x,y=self.base_coord[i]
+        
+        self.state = [x,y,0,100]
                 
         
         
