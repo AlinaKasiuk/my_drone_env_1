@@ -30,10 +30,10 @@ Num  |  Action
 3    |  Right
 4    |  Up      
 5    |  Down   
-6    |  UpLeft
-7    |  UpRight 
-8    |  DownLeft
-9    |  DownRight 
+6    |  Forward&Left
+7    |  Forward&Right 
+8    |  Backward&Left
+9    |  Backward&Right 
 
 ### Reward:
 
