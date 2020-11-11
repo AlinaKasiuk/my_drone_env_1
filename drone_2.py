@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image
 import time
 
 from gym_drone.envs.drone_env import DroneEnv
@@ -33,8 +34,12 @@ while not done:
     action = env.action_space.sample()
     print('Action:', action)
     observation, reward, done, _ = env.step(action)
+    state_matrix, state, cameraspot=observation
+    state_img = Image.fromarray(state_matrix, 'RGB')
+    
     print('Timestep:', cnt)  
-    print('Observation:', observation )
+    print('State:', state )
+    print('Camera spot:', cameraspot )    
     print('Reward:', reward)    
     if done:
         break
