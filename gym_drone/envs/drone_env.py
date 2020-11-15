@@ -142,8 +142,7 @@ class DroneEnv(gym.Env):
         self.state = None
         self.state_matrix = None
     
-        self.steps_beyond_done = None                       
-
+        self.steps_beyond_done = None
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -182,12 +181,11 @@ class DroneEnv(gym.Env):
                 
         tmp_cameraspot=[p1,p2,p3,p4]
         
-        r=0
+        r = 0
+        # TODO la recompensa no es 0 cuando la camara esta fuera del mapa. Deberia ser negativa
         for i in range(x_cam_min,x_cam_max+1):
             for j in range(y_cam_min,y_cam_max+1):
-                r+=self.relevance_map[i,j]
-                
-                
+                r += self.relevance_map[i,j]
         ncol=self.x_max+1
         nrow=self.y_max+1
         
@@ -196,8 +194,20 @@ class DroneEnv(gym.Env):
 
         self.state_matrix=cam_matrix
                 
-        return tmp_cameraspot,r 
-    
+        return tmp_cameraspot,r
+
+    def get_part_relmap_by_camera(self, camera_spot):
+        camera_spot = np.array(camera_spot)
+        x_min = camera_spot[:, 0].min()
+        x_max = camera_spot[:, 0].max() + 1
+
+        y_min = camera_spot[:, 1].min()
+        y_max = camera_spot[:, 1].max() + 1
+
+        if x_min < 0 or y_min < 0:
+            return np.array([[-1.0]])
+        return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
+
     def step(self, action):
         
         err_msg = "%r (%s) invalid" % (action, type(action))
@@ -245,10 +255,9 @@ class DroneEnv(gym.Env):
         self.state=(x, y, z, battery) 
         self.cameraspot, r = self._get_cameraspot()
         
-        self.observation=self.state_matrix, self.state, self.cameraspot
+        self.observation = self.state_matrix, self.state, self.cameraspot
+        reward = r
 
-        reward=r
-      
         return self.observation, reward, done, {}
 
     def get_map(self,rel_map):
@@ -275,9 +284,6 @@ class DroneEnv(gym.Env):
         self.base_coord=Coord.T
         
         return self.base_coord
-                    
-                    
-        
 
     def reset(self):
         m,n=self.base_coord.shape
@@ -285,17 +291,14 @@ class DroneEnv(gym.Env):
         x,y=self.base_coord[i]
         
         self.state = [x,y,0,100]
-                
-        
         
         #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot, r = self._get_cameraspot()
         
         self.steps_beyond_done = None
-        return self.state_matrix,  np.array(self.cameraspot), r 
+        return self.state_matrix,  np.array(self.cameraspot), r
 
-
-    def render(self, mode='human'):
+    def render(self, mode='human', map_image='examples/map.png'):
         screen_width = 825
         screen_height = 775
 
@@ -319,11 +322,10 @@ class DroneEnv(gym.Env):
             self.viewer = rendering.Viewer(screen_width, screen_height)
             #self.viewer.get_map()
             #print_map.PrintMap()
-        
-            
+
             l, r, t, b = -drone_width / 2, drone_width / 2, drone_len / 2, -drone_len / 2
             drone = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            map_img = rendering.Image('map.png', screen_width, screen_height)
+            map_img = rendering.Image(map_image, screen_width, screen_height)
             self.drone_trans = rendering.Transform()
             self.map_trans = rendering.Transform()
             self.drone_color = drone.attrs[0]
@@ -346,15 +348,7 @@ class DroneEnv(gym.Env):
         self.drone_trans.set_scale(dronez/50, dronez/50)
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
-
     def close(self):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
-    
-        
-
-        
-
-
-
