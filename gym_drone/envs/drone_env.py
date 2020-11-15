@@ -89,7 +89,7 @@ class DroneEnv(gym.Env):
         self.z_min = int(0)
         self.z_max = int(5)        
         self.min_battery = 0
-        self.max_battery = 100
+        self.max_battery = 500
         
         
         self.cam_angle = 0.25*math.pi
@@ -222,7 +222,6 @@ class DroneEnv(gym.Env):
             or y > self.y_max
             or z < self.z_min
             or z > self.z_max
-            or battery<=0
             )  
          
         battery-=self.delta_battery
@@ -256,7 +255,10 @@ class DroneEnv(gym.Env):
         self.cameraspot, r = self._get_cameraspot()
         
         self.observation = self.state_matrix, self.state, self.cameraspot
-        reward = r
+        if done:
+            reward=-1000
+        else:
+            reward = r
 
         return self.observation, reward, done, {}
 
@@ -269,7 +271,6 @@ class DroneEnv(gym.Env):
     def get_bases(self,bs):
         self.base_stations=bs
         ncol, nrow = bs.shape
-        k=1
         x=[]
         y=[]
         for i in range(0,ncol-1):
@@ -290,7 +291,7 @@ class DroneEnv(gym.Env):
         i=np.random.randint(0,m-1)
         x,y=self.base_coord[i]
         
-        self.state = [x,y,0,100]
+        self.state = [30,30,3,100]
         
         #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot, r = self._get_cameraspot()
