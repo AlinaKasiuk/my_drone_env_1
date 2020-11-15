@@ -34,18 +34,25 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
 
     iter_counts = 0
     for i in range(episodes):
+        print("episode No",i)
         # the current state is the initial state
         state_matrix, cameraspot, _ = env.reset()
         cs = state_matrix, cv2.resize(env.get_part_relmap_by_camera(cameraspot), state_matrix.shape)
-
-        for j in range(iterations):
+        done = False
+        cnt = 0 # number of moves in an episode
+        while not done:
+            env.render()
+            cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
             a = select_action(model, cs, action_epsilon)
             # update epsilon value taking into account the number of iterations
-            action_epsilon = update_epsilon(action_epsilon, epsilon_decrease, iter_counts)
+            #action_epsilon -= epsilon_decrease
+            update_epsilon(action_epsilon, epsilon_decrease, iter_counts)
 
-            observation, reward, _, _ = env.step(a)
+            observation, reward,done, _ = env.step(a)
+            if done and cnt < 200:
+                reward = -1000
             # TODO Alina must gave the same type of return in env.reset and the output of observation
             state_matrix, _, cameraspot = observation
             spot_rm = cv2.resize(env.get_part_relmap_by_camera(cameraspot), state_matrix.shape)
@@ -56,6 +63,8 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
                 data = np.random.permutation(replay_memory)[:batch_size]
                 train_qnet(model, data)
             cs = state_matrix, spot_rm
+
+        print ("Episode finished after {} timesteps".format(cnt))
 
 
 def select_action(model, cs, action_epsilon):
@@ -76,4 +85,5 @@ def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
 
 if __name__ == '__main__':
     env = init_environment()
-    train_RL(10, 100, env, 0.1, 0.01, 20)
+    train_RL(100, env.max_battery, env, 0.6, 0.01, 20)
+    env.close() 
