@@ -1,5 +1,7 @@
 from torch import argmax, from_numpy
 import numpy as np
+import pandas as pd
+import math
 import cv2
 from random import random
 
@@ -33,6 +35,8 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
     ##
 
     iter_counts = 0
+    df = pd.DataFrame(columns = ['Episode', 'Number of steps', 'Total reward'])
+    df_actions = pd.DataFrame(columns = ['Episode', 'Step', 'Action', 'Action type', 'Reward'])
     for i in range(episodes):
         print("episode No",i)
         # the current state is the initial state
@@ -40,50 +44,58 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
         cs = state_matrix, cv2.resize(env.get_part_relmap_by_camera(cameraspot), state_matrix.shape)
         done = False
         cnt = 0 # number of moves in an episode
+        action_epsilon=1
+        total_reward = 0
         while not done:
             env.render()
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
-            a = select_action(model, cs, action_epsilon)
+            a, a_type = select_action(model, cs, action_epsilon)
             # update epsilon value taking into account the number of iterations
-            #action_epsilon -= epsilon_decrease
-            update_epsilon(action_epsilon, epsilon_decrease, iter_counts)
-
+            action_epsilon =update_epsilon(action_epsilon, epsilon_decrease, iter_counts)
             observation, reward,done, _ = env.step(a)
+            df_actions.loc[iter_counts] = {'Episode': i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
+            total_reward += reward
             if done and cnt < 200:
                 reward = -1000
             # TODO Alina must gave the same type of return in env.reset and the output of observation
             state_matrix, _, cameraspot = observation
             spot_rm = cv2.resize(env.get_part_relmap_by_camera(cameraspot), state_matrix.shape)
             replay_memory.append((state_matrix, a, spot_rm, reward))
-
             # training the model after batch_size iterations
             if iter_counts % batch_size == 0:
                 data = np.random.permutation(replay_memory)[:batch_size]
                 train_qnet(model, data)
             cs = state_matrix, spot_rm
-
+            
+        df.loc[i]={'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
+        print ("Total reward:", total_reward)
         print ("Episode finished after {} timesteps".format(cnt))
-
+    return df, df_actions
 
 def select_action(model, cs, action_epsilon):
     if random() > action_epsilon:
         x = from_numpy(np.stack(cs)).unsqueeze(dim=0)
         pred = model(x)
-
+        act_type = 'Model'
         position = argmax(pred, dim=1)
-        return position.item()
+        return position.item(), act_type
     act = list(actions.keys())
-    return np.random.choice(act)
+    act_type = 'Random'
+    return np.random.choice(act), act_type
 
 
 def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
     # TODO do this properly
+    action_epsilon =math.pow(0.9,iter_counts/100)
     return action_epsilon
 
 
 if __name__ == '__main__':
     env = init_environment()
-    train_RL(100, env.max_battery, env, 0.6, 0.01, 20)
+    table, table_actions=train_RL(200, env.max_battery, env, 0.6, 0.01, 10)
     env.close() 
+    table.to_csv ('episodes.csv', sep=';', index = False, header=True)
+    table_actions.to_csv ('actions.csv', sep=';', index = False, header=True)
+    
