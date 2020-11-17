@@ -35,6 +35,7 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
     ##
 
     iter_counts = 0
+    action_epsilon=1
     df = pd.DataFrame(columns = ['Episode', 'Number of steps', 'Total reward'])
     df_actions = pd.DataFrame(columns = ['Episode', 'Step', 'Action', 'Action type', 'Reward'])
     for i in range(episodes):
@@ -44,7 +45,6 @@ def train_RL(episodes, iterations, env, action_epsilon, epsilon_decrease, batch_
         cs = state_matrix, cv2.resize(env.get_part_relmap_by_camera(cameraspot), state_matrix.shape)
         done = False
         cnt = 0 # number of moves in an episode
-        action_epsilon=1
         total_reward = 0
         while not done:
             env.render()
