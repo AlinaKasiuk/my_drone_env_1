@@ -1,4 +1,5 @@
-IMG_W, IMG_H = 64, 64
+# IMG_W, IMG_H = 64, 64
+IMG_W, IMG_H = 32, 32
 actions = {
     0: "FORWARD", 1: "BACKWARD",
     2: "LEFT", 3: "RIGHT", 4: "UP", 5: "DOWN",

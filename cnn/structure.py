@@ -69,5 +69,5 @@ class DroneQNet(nn.Module):
 
 
 if __name__ == '__main__':
-    m = DroneQNet(2, 64, 64, 10)
+    m = DroneQNet(2, 32, 32, 10)
     print(m.get_out_size())
