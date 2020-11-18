@@ -214,6 +214,8 @@ class DroneEnv(gym.Env):
         assert self.action_space.contains(action), err_msg    
     
         x, y, z, battery = self.state
+        self.cameraspot, r = self._get_cameraspot()
+        
             
         done = bool(
             x < self.x_min
@@ -252,13 +254,13 @@ class DroneEnv(gym.Env):
             x+=self.delta_pos   # Right             
         
         self.state=(x, y, z, battery) 
-        self.cameraspot, r = self._get_cameraspot()
+        self.cameraspot, r_new = self._get_cameraspot()
         
         self.observation = self.state_matrix, self.state, self.cameraspot
-        if done:
-            reward=-1000
-        else:
-            reward = r
+        #if done:
+        #    reward=-1000
+        #else:
+        reward = r_new-r
 
         return self.observation, reward, done, {}
 
