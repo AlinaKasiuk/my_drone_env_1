@@ -27,12 +27,12 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
     return env
 
 
-def train_RL(episodes, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size):
+def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size):
     #    Initialization
     agent = BasicAgent(actions)
     replay_memory = []
     ##
-
+    action_epsilon=0.6
     iter_counts = 0
     df = pd.DataFrame(columns=['Episode', 'Number of steps', 'Total reward'])
     df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
@@ -44,7 +44,7 @@ def train_RL(episodes, replace_iterations, env, action_epsilon, epsilon_decrease
         done = False
         cnt = 0 # number of moves in an episode
         total_reward = 0
-        while not done:
+        for j in range(iterations):
             env.render()
             cnt += 1
             iter_counts += 1
@@ -90,7 +90,7 @@ def select_action(model, cs, action_epsilon):
 
 def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
     # TODO do this properly
-    # action_epsilon = math.pow(0.9, iter_counts/100.0)
+    action_epsilon = 0.6*math.pow(0.9, iter_counts/1000.0)
     return action_epsilon
 
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     batch_s = 10
     replace_iter = 20
     #
-    table, table_actions = train_RL(200, replace_iter, env, action_eps, 0.01, batch_s)
+    table, table_actions = train_RL(200, env.max_battery, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
     table.to_csv('episodes.csv', sep=';', index = False, header=True)
     table_actions.to_csv ('actions.csv', sep=';', index = False, header=True)
