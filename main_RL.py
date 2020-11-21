@@ -1,4 +1,4 @@
-from torch import argmax, from_numpy
+from torch import argmax, from_numpy, save as torch_save, load as torch_load
 import numpy as np
 import pandas as pd
 import math
@@ -6,6 +6,7 @@ import cv2
 from random import random
 
 from cnn.basic_agent import BasicAgent
+from cnn.structure import DroneQNet
 from gym_drone.envs.drone_env import DroneEnv
 from constants import IMG_H, IMG_W, actions
 
@@ -39,16 +40,16 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     df = pd.DataFrame(columns=['Episode', 'Number of steps', 'Total reward'])
     df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
     for i in range(episodes):
-        env.render(show=True)
+        # env.render(show=True)
         print("episode No", i)
         # the current state is the initial state
-        state_matrix, cameraspot, _ = env.reset()
+        state_matrix, cameraspot = env.reset()
         cs = get_current_state(state_matrix, cameraspot)
         done = False
         cnt = 0 # number of moves in an episode
         total_reward = 0
         for j in range(iterations):
-            env.render(show=False)
+            env.render(show=i > 190)
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
@@ -75,6 +76,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         df.loc[i]={'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
+    save_model(agent.model, "drone_model.pth")
     return df, df_actions
 
 
@@ -90,6 +92,18 @@ def select_action(model, cs, action_epsilon):
     return np.random.choice(act), act_type
 
 
+def save_model(model, path):
+    torch_save(model.state_dict(), path)
+
+
+def load_model(path):
+    model = DroneQNet(2, IMG_W, IMG_H, len(actions))
+    model.load_state_dict(torch_load(path))
+    model.eval()
+
+    return model
+
+
 def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
     # TODO do this properly
     action_epsilon = 0.5*math.pow(0.9, iter_counts/300.0)
@@ -100,6 +114,21 @@ def get_current_state(state_matrix, camera):
     state_matrix = cv2.resize(state_matrix, (32, 32)) / 100
     resize_camera = cv2.resize(env.get_part_relmap_by_camera(camera), state_matrix.shape)
     return np.stack((state_matrix, resize_camera))
+
+
+def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
+    model = load_model(model_path)
+
+    state_matrix, cameraspot = env.reset()
+    cs = get_current_state(state_matrix, cameraspot)
+
+    for i in range(iterate):
+        env.render(show=i > 190)
+        a, a_type = select_action(model, cs, 0)
+        observation, reward, done, _ = env.step(a)
+
+        state_matrix, _, cameraspot = observation
+        cs = get_current_state(state_matrix, cameraspot)
 
 
 if __name__ == '__main__':

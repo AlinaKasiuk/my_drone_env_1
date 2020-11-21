@@ -155,26 +155,12 @@ class DroneEnv(gym.Env):
         
         x, y, z, battery = self.state
         c=z # *math.tan(self.cam_angle))
-        
-        if x-c < self.x_min:
-            x_cam_min = self.x_min
-        else:
-            x_cam_min = x-c
-            
-        if x+c > self.x_max:
-            x_cam_max = self.x_max
-        else:
-            x_cam_max = x+c
+
+        x_cam_min = x-c
+        x_cam_max = x+c
              
-        if  y-c<self.y_min:
-            y_cam_min=self.y_min
-        else:
-            y_cam_min=y-c
-            
-        if  y+c>self.y_max:
-            y_cam_max=self.y_max
-        else:
-            y_cam_max=y+c
+        y_cam_min = y-c
+        y_cam_max = y+c
 
         p1=[x_cam_min,y_cam_max]
         p2=[x_cam_min,y_cam_min]
@@ -183,11 +169,6 @@ class DroneEnv(gym.Env):
                 
         tmp_cameraspot=[p1,p2,p3,p4]
 
-        r = 0
-        # TODO la recompensa no es 0 cuando la camara esta fuera del mapa. Deberia ser negativa
-        for i in range(x_cam_min,x_cam_max+1):
-            for j in range(y_cam_min,y_cam_max+1):
-                r += self.relevance_map[i,j]
         ncol=self.x_max+1
         nrow=self.y_max+1
         
@@ -206,7 +187,8 @@ class DroneEnv(gym.Env):
         y_min = camera_spot[:, 1].min()
         y_max = camera_spot[:, 1].max() + 1
 
-        if x_min < 0 or y_min < 0:
+        # out of boundaries
+        if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
             return np.array([[-1.0]])
         return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
 
@@ -227,7 +209,7 @@ class DroneEnv(gym.Env):
         assert self.action_space.contains(action), err_msg    
     
         x, y, z, battery = self.state
-        current_camera_spot, r = self._get_cameraspot()
+        current_camera_spot = self._get_cameraspot()
 
         done = bool(
             x < self.x_min
@@ -267,7 +249,7 @@ class DroneEnv(gym.Env):
 
         old_state = self.state
         self.state = (x, y, z, battery)
-        self.cameraspot, r_new = self._get_cameraspot()
+        self.cameraspot = self._get_cameraspot()
         self.observation = self.state_matrix, self.state, self.cameraspot
 
         r = self.get_reward(old_state, self.state, current_camera_spot, self.cameraspot)
@@ -282,9 +264,11 @@ class DroneEnv(gym.Env):
         n_r = self.get_part_relmap_by_camera(new_cs).sum()
         if n_r < 0:
             print("EL nuevo estado esta fuera")
+            self.relevance_map = np.array(self.initial_rm)
             return -100
         _, _, new_z, _ = new_state
         if new_z not in self.k:
+            self.relevance_map = np.array(self.initial_rm)
             print("Altura no apropiada")
             return -100
 
@@ -341,11 +325,11 @@ class DroneEnv(gym.Env):
         self.state = [x, y, 1, 100]
 
         #self.np_random.randint(low=10, high=15, size=(4,))
-        self.cameraspot, r = self._get_cameraspot()
+        self.cameraspot = self._get_cameraspot()
         
         self.steps_beyond_done = None
         self.relevance_map = np.array(self.initial_rm)
-        return self.state_matrix,  np.array(self.cameraspot), r
+        return self.state_matrix,  np.array(self.cameraspot)
 
     def render(self, mode='human', show=True):
         if not self.state:
