@@ -83,13 +83,13 @@ class DroneEnv(gym.Env):
         # Hyperparameter definition 
         # The borders for state values (changes with downloading a map)
         self.x_min = int(0)
-        self.x_max = int(63)
+        self.x_max = int(24)
         self.y_min = int(0)
-        self.y_max = int(63)
+        self.y_max = int(24)
         self.z_min = int(0)
         self.z_max = int(5)        
         self.min_battery = 0
-        self.max_battery = 500
+        self.max_battery = 100
         
         
         self.cam_angle = 0.25*math.pi
@@ -215,7 +215,7 @@ class DroneEnv(gym.Env):
     
         x, y, z, battery = self.state
         self.cameraspot, r = self._get_cameraspot()
-        
+    
             
         done = bool(
             x < self.x_min
@@ -225,6 +225,9 @@ class DroneEnv(gym.Env):
             or z < self.z_min
             or z > self.z_max
             )  
+        
+        if done:
+            r=100            
          
         battery-=self.delta_battery
         
@@ -257,10 +260,11 @@ class DroneEnv(gym.Env):
         self.cameraspot, r_new = self._get_cameraspot()
         
         self.observation = self.state_matrix, self.state, self.cameraspot
-        #if done:
-        #    reward=-1000
-        #else:
+        if done:
+            r_new=-100
+
         reward = r_new-r
+        
 
         return self.observation, reward, done, {}
 
@@ -293,7 +297,7 @@ class DroneEnv(gym.Env):
         i=np.random.randint(0,m-1)
         x,y=self.base_coord[i]
         
-        self.state = [30,30,3,100]
+        self.state = [12,12,1,100]
         
         #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot, r = self._get_cameraspot()
