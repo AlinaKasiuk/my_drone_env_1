@@ -31,8 +31,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     #    Initialization
     agent = BasicAgent(actions)
     replay_memory = []
-    ##
-    action_epsilon=0.6
+    #
     iter_counts = 0
     df = pd.DataFrame(columns=['Episode', 'Number of steps', 'Total reward'])
     df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
@@ -104,7 +103,7 @@ if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
     env = init_environment()
-    action_eps = 0.4
+    action_eps = 0.6
 
     batch_s = 10
     replace_iter = 20
