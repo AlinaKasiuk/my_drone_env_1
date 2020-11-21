@@ -6,7 +6,6 @@ import cv2
 from random import random
 
 from cnn.basic_agent import BasicAgent
-from cnn.train import train_qnet
 from gym_drone.envs.drone_env import DroneEnv
 from constants import IMG_H, IMG_W, actions
 
@@ -15,12 +14,16 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
     env = DroneEnv()
 
     # Get relevance map
-    rel_map = np.genfromtxt(map_file, delimiter=';', dtype='int')
-    print(rel_map)
+    rel_map = np.genfromtxt(map_file, delimiter=';')
+    # rel_map[0, 0] = 0
+    # np.savetxt(map_file, rel_map, delimiter=';', fmt='%.1f')
     env.get_map(rel_map)
 
     # Get base stations
     base_stations = np.genfromtxt(stations_file, delimiter=';', dtype='int')
+    base_stations = np.zeros_like(env.relevance_map)
+    mid_x, mid_y = int(base_stations.shape[0]/2), int(base_stations.shape[1]/2)
+    base_stations[mid_x, mid_y] = 100
     print(base_stations)
     base_coord = env.get_bases(base_stations)
     print(base_coord)
@@ -36,6 +39,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     df = pd.DataFrame(columns=['Episode', 'Number of steps', 'Total reward'])
     df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
     for i in range(episodes):
+        env.render(show=True)
         print("episode No", i)
         # the current state is the initial state
         state_matrix, cameraspot, _ = env.reset()
@@ -44,7 +48,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         cnt = 0 # number of moves in an episode
         total_reward = 0
         for j in range(iterations):
-            env.render()
+            env.render(show=False)
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
@@ -54,9 +58,8 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
             observation, reward, done, _ = env.step(a)
             df_actions.loc[iter_counts] = {'Episode': i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
             total_reward += reward
-            if done and cnt < 200:
-                reward = -1000
-            # TODO Alina must gave the same type of return in env.reset and the output of observation
+            # if done and cnt < 200:
+            #     reward = -1000
             state_matrix, _, cameraspot = observation
             new_state = get_current_state(state_matrix, cameraspot)
             replay_memory.append((cs, a, new_state, reward, done))
@@ -89,7 +92,7 @@ def select_action(model, cs, action_epsilon):
 
 def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
     # TODO do this properly
-    action_epsilon = 0.6*math.pow(0.9, iter_counts/1000.0)
+    action_epsilon = 0.5*math.pow(0.9, iter_counts/300.0)
     return action_epsilon
 
 
@@ -102,13 +105,16 @@ def get_current_state(state_matrix, camera):
 if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
-    env = init_environment()
-    action_eps = 0.6
+    m_file = "ones.csv"
+    # m_file = "map_old.csv"
+    env = init_environment(map_file=m_file)
+    action_eps = 0.5
 
     batch_s = 10
     replace_iter = 20
+    iterations = 180
     #
-    table, table_actions = train_RL(200, env.max_battery, replace_iter, env, action_eps, 0.01, batch_s)
+    table, table_actions = train_RL(200, iterations, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
     table.to_csv('episodes.csv', sep=';', index = False, header=True)
     table_actions.to_csv ('actions.csv', sep=';', index = False, header=True)
