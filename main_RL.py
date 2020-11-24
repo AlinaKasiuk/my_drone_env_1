@@ -16,8 +16,8 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
 
     # Get relevance map
     rel_map = np.genfromtxt(map_file, delimiter=';')
-    # rel_map[0, 0] = 0
-    # np.savetxt(map_file, rel_map, delimiter=';', fmt='%.1f')
+    #rel_map[0, 0] = 0
+    #np.savetxt(map_file, rel_map, delimiter=';', fmt='%.1f')
     env.get_map(rel_map)
 
     # Get base stations
@@ -33,7 +33,9 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
 
 def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size):
     #    Initialization
+    
     agent = BasicAgent(actions)
+   # agent.model = load_model("drone_model_2.pth")
     replay_memory = []
     #
     iter_counts = 0
@@ -48,8 +50,9 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         done = False
         cnt = 0 # number of moves in an episode
         total_reward = 0
-        for j in range(iterations):
-            env.render(show=i > 190)
+        while not done:
+            env.render(show=False )
+                       #i > 990)
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
@@ -57,6 +60,8 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
             # update epsilon value taking into account the number of iterations
             action_epsilon = update_epsilon(action_epsilon, epsilon_decrease, iter_counts)
             observation, reward, done, _ = env.step(a)
+            if cnt>400:
+                done = True
             df_actions.loc[iter_counts] = {'Episode': i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
             total_reward += reward
             # if done and cnt < 200:
@@ -72,11 +77,12 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
                 if agent.train_iterations % replace_iterations == 0:
                     agent.replace_target_network()
             cs = new_state
+
             
         df.loc[i]={'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
-    save_model(agent.model, "drone_model.pth")
+    save_model(agent.model, "drone_model_32.pth")
     return df, df_actions
 
 
@@ -100,14 +106,18 @@ def load_model(path):
     model = DroneQNet(2, IMG_W, IMG_H, len(actions))
     model.load_state_dict(torch_load(path))
     model.eval()
-
+    model.double()
     return model
 
 
 def update_epsilon(action_epsilon, epsilon_decrease, iter_counts):
     # TODO do this properly
-    action_epsilon = 0.5*math.pow(0.9, iter_counts/300.0)
-    return action_epsilon
+    epsilon = 0.6*math.pow(0.9, iter_counts/300.0)
+    if epsilon>0.1:
+        return action_epsilon
+    else:
+        return 0.1
+    
 
 
 def get_current_state(state_matrix, camera):
@@ -123,7 +133,8 @@ def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
     cs = get_current_state(state_matrix, cameraspot)
 
     for i in range(iterate):
-        env.render(show=i > 190)
+        env.render(show=True)
+               #    i > 190)
         a, a_type = select_action(model, cs, 0)
         observation, reward, done, _ = env.step(a)
 
@@ -135,15 +146,16 @@ if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
     m_file = "ones.csv"
-    # m_file = "map_old.csv"
+    #m_file = "map_old.csv"
     env = init_environment(map_file=m_file)
-    action_eps = 0.5
+    action_eps = 0.6
 
-    batch_s = 10
-    replace_iter = 20
+    batch_s = 16
+    replace_iter = 32
     iterations = 180
     #
-    table, table_actions = train_RL(200, iterations, replace_iter, env, action_eps, 0.01, batch_s)
+    #test_trained_net(env, iterate=200, model_path="drone_model_1.pth")
+    table, table_actions = train_RL(5000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
     table.to_csv('episodes.csv', sep=';', index = False, header=True)
     table_actions.to_csv ('actions.csv', sep=';', index = False, header=True)
