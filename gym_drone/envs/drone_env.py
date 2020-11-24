@@ -87,14 +87,14 @@ class DroneEnv(gym.Env):
         # Hyperparameter definition 
         # The borders for state values (changes with downloading a map)
         self.x_min = int(0)
-        self.x_max = int(63)
+        self.x_max = int(31)
         self.y_min = int(0)
-        self.y_max = int(63)
+        self.y_max = int(31)
         self.z_min = int(0)
         self.z_max = int(5)
         self.k = {0: 0.5, 1: 1, 2: .875, 3: .75, 4:.625, 5: 0.5}
         self.min_battery = 0
-        self.max_battery = 100
+        self.max_battery = 200
         self.cam_angle = 0.25*math.pi
      
         self.delta_pos = 1
@@ -213,11 +213,12 @@ class DroneEnv(gym.Env):
 
         done = bool(
             x < self.x_min
-            or x > self.x_max
-            or y < self.y_min
-            or y > self.y_max
-            or z < self.z_min
-            or z > self.z_max
+            or x > self.x_max+2
+            or y < self.y_min-2
+            or y > self.y_max+2
+            or z < self.z_min-2
+            or z > self.z_max+2
+            or battery<-100
             )
 
         battery -= self.delta_battery
@@ -245,7 +246,10 @@ class DroneEnv(gym.Env):
             x-=self.delta_pos   # Left             
         elif action==9:
             y-=self.delta_pos   # Backward           
-            x+=self.delta_pos   # Right             
+            x+=self.delta_pos   # Right        
+            
+        if x==self.base_x and y==self.base_y:
+            battery=100
 
         old_state = self.state
         self.state = (x, y, z, battery)
@@ -263,18 +267,18 @@ class DroneEnv(gym.Env):
 
         n_r = self.get_part_relmap_by_camera(new_cs).sum()
         if n_r < 0:
-            print("EL nuevo estado esta fuera")
-            self.relevance_map = np.array(self.initial_rm)
+          #  print("EL nuevo estado esta fuera")
+          #  self.relevance_map = np.array(self.initial_rm)
             return -100
         _, _, new_z, _ = new_state
         if new_z not in self.k:
-            self.relevance_map = np.array(self.initial_rm)
-            print("Altura no apropiada")
+         #   self.relevance_map = np.array(self.initial_rm)
+          #  print("Altura no apropiada")
             return -100
 
         p = battery - dist < 0
         if p:
-            print("Too far from base station {0}".format(self.get_distance(state) - dist))
+            #print("Too far from base station {0}".format(self.get_distance(state) - dist))
             return 60 * (self.get_distance(state) - dist)
         else:
             c_r = self.get_part_relmap_by_camera(current_camera_spot).sum()
