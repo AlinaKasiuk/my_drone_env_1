@@ -419,3 +419,7 @@ class DroneEnv(gym.Env):
         plt.close(fig)
 
         return map_image
+    
+    def get_coverage_rate(self):
+        cr=100-self.relevance_map.sum()*100/512
+        return cr
