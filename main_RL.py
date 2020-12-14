@@ -35,7 +35,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     #    Initialization
     
     agent = BasicAgent(actions)
-   # agent.model = load_model("drone_model_2.pth")
+    agent.model = load_model("drone_model_32.pth")
     replay_memory = []
     #
     iter_counts = 0
@@ -68,6 +68,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
             #     reward = -1000
             state_matrix, _, cameraspot = observation
             new_state = get_current_state(state_matrix, cameraspot)
+            
             replay_memory.append((cs, a, new_state, reward, done))
             # training the model after batch_size iterations
             if iter_counts % batch_size == 0:
@@ -82,7 +83,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         df.loc[i]={'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
-    save_model(agent.model, "drone_model_32.pth")
+    save_model(agent.model, "drone_model_32_chess.pth")
     return df, df_actions
 
 
@@ -131,31 +132,38 @@ def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
 
     state_matrix, cameraspot = env.reset()
     cs = get_current_state(state_matrix, cameraspot)
-
+    df_actions = pd.DataFrame(columns=['Step', 'Action', 'Action type', 'Reward', 'Coverage rate', 'X', 'Y', 'Z', 'Battery'])                
     for i in range(iterate):
         env.render(show=True)
                #    i > 190)
-        a, a_type = select_action(model, cs, 0)
+        a, a_type = select_action(model, cs, 0.1)
         observation, reward, done, _ = env.step(a)
-
+        cr=env.get_coverage_rate()
+        x,y,z, bl=env.state
+        df_actions.loc[i] = {'Step': i, 'Action': a, 'Action type': a_type,'Reward': reward, 'Coverage rate': cr, 'X': x, 'Y': y, 'Z': z, 'Battery': bl }
         state_matrix, _, cameraspot = observation
         cs = get_current_state(state_matrix, cameraspot)
-
+    return df_actions
 
 if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
     m_file = "ones.csv"
     #m_file = "map_old.csv"
+    #m_file = "checkerboard.csv"
     env = init_environment(map_file=m_file)
     action_eps = 0.6
+
 
     batch_s = 16
     replace_iter = 32
     iterations = 180
     #
-    #test_trained_net(env, iterate=200, model_path="drone_model_1.pth")
-    table, table_actions = train_RL(5000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
+    table_actions=test_trained_net(env, iterate=400, model_path="drone_model_32_chess.pth")
+    print(env.get_coverage_rate())    
+    #table, table_actions = train_RL(3000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
-    table.to_csv('episodes.csv', sep=';', index = False, header=True)
-    table_actions.to_csv ('actions.csv', sep=';', index = False, header=True)
+    
+    
+   #table.to_csv('episodes.csv', sep=';', index = False, header=True)
+    table_actions.to_csv ('actions_test.csv', sep=';', index = False, header=True)
