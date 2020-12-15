@@ -1,7 +1,5 @@
 ﻿**class DroneEnv**
-@settings {
-  font-size: 100;
-}
+@settings{font-size: 100;}
  
 Functions
 
