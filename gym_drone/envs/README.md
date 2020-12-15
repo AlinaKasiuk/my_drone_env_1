@@ -2,6 +2,7 @@
  
 Functions
 
+<body>
 ||**Used Functions**|**Used Variables**|**Parameters**|**Changes**|**Returns**|**Description**|
 | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 |**get\_map**(*self*,rel\_map)|-|-|rel\_map: NumPy array [m × n]|<p>*self*.relevance\_map </p><p>*self*.initial\_rm </p><p>*self*.x\_max</p><p>*self*.y\_max</p>|**-**|Downloads the relevance map|
@@ -19,7 +20,7 @@ Functions
 |**render**(*self*, mode='human', show=True)|*self*.**get\_map\_image**()|<p>*self*.state</p><p>*self*.x\_min</p><p>*self*.x\_max</p><p>*self*.viewer</p><p></p>|show: bool|<p>*self*.drone\_trans</p><p>*self*.map\_trans</p><p>*self*.drone\_color</p><p>*self*.axle</p><p>*self*.viewer</p>|*self*.viewer.render(\_)|Visualization|
 |**close**(*self*)|*-*|*self*.viewer|-|*self*.viewer|*-*|Closes the window|
 |**get\_coverage\_rate**(*self*)|*-*|*self*.relevance\_map|-|*-*|coverage\_rate|Calculates the coverage rate|
-
+</body>
 
 
 
