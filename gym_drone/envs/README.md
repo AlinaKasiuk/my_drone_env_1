@@ -1,4 +1,4 @@
-﻿**class DroneEnv**
+## class DroneEnv
  
 Functions
 
