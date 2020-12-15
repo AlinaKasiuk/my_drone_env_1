@@ -92,14 +92,21 @@ class DroneEnv(gym.Env):
         self.y_max = int(31)
         self.z_min = int(0)
         self.z_max = int(5)
+        
+        # k quality coeficient
+        # TODO: define k with a formula
         self.k = {0: 0.5, 1: 1, 2: .875, 3: .75, 4:.625, 5: 0.5}
+        
+        
         self.min_battery = 0
         self.max_battery = 200
-        self.cam_angle = 0.25*math.pi
-     
+        
+        # One step size
         self.delta_pos = 1
         self.delta_battery = 1
         
+        
+        # Initial values
         self.state = None   #initiate state holder
         self.cameraspot=None
         
@@ -139,18 +146,44 @@ class DroneEnv(gym.Env):
                                 [1,1,1,1,1],
                                 [0,1,1,1,0],
                                 [0,0,1,0,0]]
-        self.initial_rm = None
+
         self.seed()
         self.viewer = None
         self.state = None
         self.state_matrix = None
     
         self.steps_beyond_done = None
+        
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    def get_map(self,rel_map):
+        self.relevance_map=rel_map
+        self.initial_rm = rel_map
+        ncol, nrow = rel_map.shape
+        self.x_max=ncol-1
+        self.y_max=nrow-1
+        
+    def get_bases(self,bs):
+        self.base_stations=bs
+        ncol, nrow = bs.shape
+        x=[]
+        y=[]
+        for i in range(0,ncol-1):
+            for j in range(0,nrow-1):
+                if bs[i][j]==100:
+                    x.append(i)
+                    y.append(j)
+        self.base_x=np.array(x)
+        self.base_y=np.array(y)
+        Coord=np.array([self.base_x,self.base_y])
+        self.base_coord=Coord.T
+        
+        return self.base_coord    
+    
+    
     def _get_cameraspot(self):
         
         x, y, z, battery = self.state
@@ -178,6 +211,32 @@ class DroneEnv(gym.Env):
         self.state_matrix = cam_matrix
                 
         return tmp_cameraspot
+    
+    def reset(self):
+        m,n = self.base_coord.shape
+        i = np.random.randint(0, m-1) if m > 1 else 0
+        x,y=self.base_coord[i]
+        
+        self.state = [x, y, 1, 100]
+
+        #self.np_random.randint(low=10, high=15, size=(4,))
+        self.cameraspot = self._get_cameraspot()
+        
+        self.steps_beyond_done = None
+        self.relevance_map = np.array(self.initial_rm)
+        return self.state_matrix,  np.array(self.cameraspot)    
+
+    def get_distance(self, state):
+        min_dist = len(self.relevance_map)
+        x, y, _, _ = state
+        for bx, by in zip(self.base_x, self.base_y):
+            dif_x = abs(x - bx)
+            dif_y = abs(y - by)
+
+            dist = max(dif_x, dif_y)
+            if dist < min_dist:
+                min_dist = dist
+        return min_dist
 
     def get_part_relmap_by_camera(self, camera_spot):
         camera_spot = np.array(camera_spot)
@@ -191,6 +250,30 @@ class DroneEnv(gym.Env):
         if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
             return np.array([[-1.0]])
         return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
+    
+    def get_reward(self, old_state, new_state, old_camera_spot, new_camera_spot):
+        x, y, z, battery = old_state
+        dist = self.get_distance(new_state)
+
+        n_r = self.get_part_relmap_by_camera(new_camera_spot).sum()
+        if n_r < 0:
+          #  print("EL nuevo estado esta fuera")
+          #  self.relevance_map = np.array(self.initial_rm)
+            return -100
+        _, _, new_z, _ = new_state
+        if new_z not in self.k:
+         #   self.relevance_map = np.array(self.initial_rm)
+          #  print("Altura no apropiada")
+            return -100
+
+        p = battery - dist < 0
+        if p:
+            #print("Too far from base station {0}".format(self.get_distance(old_state) - dist))
+            return 60 * (self.get_distance(old_state) - dist)
+        else:
+            c_r = self.get_part_relmap_by_camera(old_camera_spot).sum()
+            reward = self.k[new_z] * (n_r - c_r)
+            return reward
 
     def zero_rel_map(self, camera_spot):
         camera_spot = np.array(camera_spot)
@@ -203,24 +286,10 @@ class DroneEnv(gym.Env):
         if x_min >= 0 and y_min >= 0:
             self.relevance_map[x_min:x_max, y_min:y_max] = 0
 
-    def step(self, action):
-        
-        err_msg = "%r (%s) invalid" % (action, type(action))
-        assert self.action_space.contains(action), err_msg    
-    
+
+    def take_action(self, action):
         x, y, z, battery = self.state
-        current_camera_spot = self._get_cameraspot()
-
-        done = bool(
-            x < self.x_min
-            or x > self.x_max+2
-            or y < self.y_min-2
-            or y > self.y_max+2
-            or z < self.z_min-2
-            or z > self.z_max+2
-            or battery<-100
-            )
-
+        
         battery -= self.delta_battery
         
         if action == 0:
@@ -250,91 +319,75 @@ class DroneEnv(gym.Env):
             
         if x==self.base_x and y==self.base_y:
             battery=100
+            
+        self.state = x, y, z, battery
+        return self.state
 
-        old_state = self.state
-        self.state = (x, y, z, battery)
-        self.cameraspot = self._get_cameraspot()
+    def check_limits(self):
+        x, y, z, battery = self.state        
+        inside = bool(
+            x < self.x_min
+            or x > self.x_max+2
+            or y < self.y_min-2
+            or y > self.y_max+2
+            or z < self.z_min-2
+            or z > self.z_max+2
+            or battery<-50
+            )  
+        return inside
+
+    
+    def step(self, action):
+        
+        err_msg = "%r (%s) invalid" % (action, type(action))
+        assert self.action_space.contains(action), err_msg    
+    
+        # Saving the previous state:
+        old_state = self.state        
+        old_camera_spot = self._get_cameraspot()
+
+        # Actualize the state with a new action
+        new_state = self.take_action(action)
+        new_cameraspot = self._get_cameraspot()
+        
+        # Check if the agent inside the map limits and it has some battery
+        done = self.check_limits()
+        
+        # Observation tuple for output:
         self.observation = self.state_matrix, self.state, self.cameraspot
-
-        r = self.get_reward(old_state, self.state, current_camera_spot, self.cameraspot)
-        # zeroing the observed values
-        self.zero_rel_map(current_camera_spot)
-        return self.observation, r, done, {}
-
-    def get_reward(self, state, new_state, current_camera_spot, new_cs):
-        x, y, z, battery = state
-        dist = self.get_distance(new_state)
-
-        n_r = self.get_part_relmap_by_camera(new_cs).sum()
-        if n_r < 0:
-          #  print("EL nuevo estado esta fuera")
-          #  self.relevance_map = np.array(self.initial_rm)
-            return -100
-        _, _, new_z, _ = new_state
-        if new_z not in self.k:
-         #   self.relevance_map = np.array(self.initial_rm)
-          #  print("Altura no apropiada")
-            return -100
-
-        p = battery - dist < 0
-        if p:
-            #print("Too far from base station {0}".format(self.get_distance(state) - dist))
-            return 60 * (self.get_distance(state) - dist)
-        else:
-            c_r = self.get_part_relmap_by_camera(current_camera_spot).sum()
-            return self.k[new_z] * (n_r - c_r)
-
-    def get_distance(self, state):
-        min_dist = len(self.relevance_map)
-        x, y, _, _ = state
-        for bx, by in zip(self.base_x, self.base_y):
-            dif_x = abs(x - bx)
-            dif_y = abs(y - by)
-
-            dist = max(dif_x, dif_y)
-            if dist < min_dist:
-                min_dist = dist
-        return min_dist
-
-    def get_map(self,rel_map):
-        self.relevance_map=rel_map
-        self.initial_rm = np.array(rel_map)
-        ncol, nrow = rel_map.shape
-        self.x_max=ncol-1
-        self.y_max=nrow-1
         
-    def get_bases(self,bs):
-        self.base_stations=bs
-        ncol, nrow = bs.shape
-        x=[]
-        y=[]
-        for i in range(0,ncol-1):
-            for j in range(0,nrow-1):
-                if bs[i][j]==100:
-                    x.append(i)
-                    y.append(j)
-                    #k+=1
-        self.base_x=np.array(x)
-        self.base_y=np.array(y)
-        Coord=np.array([self.base_x,self.base_y])
-        self.base_coord=Coord.T
+        # Calculating the reward funcion:
+        reward = self.get_reward(old_state, new_state, old_camera_spot, new_cameraspot)
         
-        return self.base_coord
-
-    def reset(self):
-        m,n = self.base_coord.shape
-        i = np.random.randint(0, m-1) if m > 1 else 0
-        x,y=self.base_coord[i]
+        # Zeroing the observed values:
+        self.zero_rel_map(old_camera_spot)
         
-        self.state = [x, y, 1, 100]
+        return self.observation, reward, done, {}
 
-        #self.np_random.randint(low=10, high=15, size=(4,))
-        self.cameraspot = self._get_cameraspot()
-        
-        self.steps_beyond_done = None
-        self.relevance_map = np.array(self.initial_rm)
-        return self.state_matrix,  np.array(self.cameraspot)
 
+    def get_map_image(self):
+        # make a color map of fixed colors
+        cmap = colors.ListedColormap(['blue', 'green', 'red'])
+        bounds = [0, 1, 3, 5]
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        map_image = "tmp.png"
+        our_map = np.array(self.relevance_map)
+        our_map[self.base_x, self.base_y] = 5
+        our_map = np.rot90(our_map, k=1)
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.gca()
+        ax.set_xticks(np.arange(-0.5, len(our_map) + 0.5, 1))
+        ax.set_yticks(np.arange(-0.5, len(our_map) + 0.5, 1))
+        plt.subplots_adjust(0, 0, 1, 1, 0, 0)
+        plt.imshow(our_map, cmap=cmap, norm=norm)
+        plt.grid(True)
+        ax.axes.xaxis.set_ticklabels([])
+        ax.axes.yaxis.set_ticklabels([])
+        plt.savefig(map_image)
+        plt.close(fig)
+
+        return map_image
+    
     def render(self, mode='human', show=True):
         if not self.state:
             return
@@ -396,30 +449,7 @@ class DroneEnv(gym.Env):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
-
-    def get_map_image(self):
-        # make a color map of fixed colors
-        cmap = colors.ListedColormap(['blue', 'green', 'red'])
-        bounds = [0, 1, 3, 5]
-        norm = colors.BoundaryNorm(bounds, cmap.N)
-        map_image = "tmp.png"
-        our_map = np.array(self.relevance_map)
-        our_map[self.base_x, self.base_y] = 5
-        our_map = np.rot90(our_map, k=1)
-        fig = plt.figure(figsize=(10, 10))
-        ax = fig.gca()
-        ax.set_xticks(np.arange(-0.5, len(our_map) + 0.5, 1))
-        ax.set_yticks(np.arange(-0.5, len(our_map) + 0.5, 1))
-        plt.subplots_adjust(0, 0, 1, 1, 0, 0)
-        plt.imshow(our_map, cmap=cmap, norm=norm)
-        plt.grid(True)
-        ax.axes.xaxis.set_ticklabels([])
-        ax.axes.yaxis.set_ticklabels([])
-        plt.savefig(map_image)
-        plt.close(fig)
-
-        return map_image
-    
+   
     def get_coverage_rate(self):
-        cr=100-self.relevance_map.sum()*100/512
-        return cr
+        coverage_rate=100-self.relevance_map.sum()*100/512
+        return coverage_rate
