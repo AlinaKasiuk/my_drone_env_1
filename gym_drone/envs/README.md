@@ -1,6 +1,5 @@
 ﻿**class DroneEnv**
 
-* { font-size: 9pt; }
  
 Functions
 
