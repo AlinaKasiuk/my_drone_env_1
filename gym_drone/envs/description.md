@@ -1,24 +1,5 @@
 ﻿**class DroneEnv**
-
-Instances:
-
-||**Type**|**Description**|
-| :-: | :-: | :-: |
-|<p>*self*.x\_min</p><p>*self*.x\_max</p><p>*self*.y\_min</p><p>*self*.y\_max</p><p>*self*.z\_min</p><p>*self*.z\_max</p>|int|<p>Min & Max coordinates</p><p>m × n × h</p>|
-|*self*.k||k(FOV)|
-|<p>*self*.min\_battery</p><p>*self*.max\_battery</p>|int|<p>Min & Max power level</p><p></p>|
-|*self*.delta\_pos|int|1 step size|
-|*self*.delta\_battery|int|Battery consumption|
-|*self*.observation\_space||The state of spaces|
-|*self*.action\_space||The state of actions|
-|*self*.relevance\_map|NumPy array [m × n]|Relevance map|
-|*self.*base\_stations|NumPy array [m × n]|Base stations map|
-|<p>*self*.base\_x</p><p>*self*.base\_y</p>|<p>NumPy array [s]</p><p>*(s – number of bases)*</p>|Base stations coordinates|
-|*self*.base\_coord|NumPy array [s×2]|Base stations coordinates|
-||||
-||||
-||||
-
+ 
 Functions
 
 ||**Used Functions**|**Used Variables**|**Parameters**|**Changes**|**Returns**|**Description**|
