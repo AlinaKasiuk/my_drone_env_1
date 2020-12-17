@@ -141,18 +141,13 @@ class DroneEnv(gym.Env):
     
         # TODO: Is it needed to define the default relevance map?
         
-        self.relevance_map =   [[0,0,1,0,0],
-                                [0,1,1,1,0],
-                                [1,1,1,1,1],
-                                [0,1,1,1,0],
-                                [0,0,1,0,0]]
+        self.relevance_map = None
+        self.initial_rm=None
 
         self.seed()
         self.viewer = None
         self.state = None
         self.state_matrix = None
-    
-        self.steps_beyond_done = None
         
 
     def seed(self, seed=None):
@@ -211,19 +206,25 @@ class DroneEnv(gym.Env):
         self.state_matrix = cam_matrix
                 
         return tmp_cameraspot
+
+        
     
     def reset(self):
+        self._check_map()
+        self._check_bases()            
+        
+        # Start from one of the base stations:
         m,n = self.base_coord.shape
         i = np.random.randint(0, m-1) if m > 1 else 0
         x,y=self.base_coord[i]
         
+        # The initial state:
         self.state = [x, y, 1, 100]
-
-        #self.np_random.randint(low=10, high=15, size=(4,))
         self.cameraspot = self._get_cameraspot()
         
-        self.steps_beyond_done = None
+        # Define the initial relevance map
         self.relevance_map = np.array(self.initial_rm)
+            
         return self.state_matrix,  np.array(self.cameraspot)    
 
     def get_distance(self, state):
@@ -285,7 +286,6 @@ class DroneEnv(gym.Env):
 
         if x_min >= 0 and y_min >= 0:
             self.relevance_map[x_min:x_max, y_min:y_max] = 0
-
 
     def take_action(self, action):
         x, y, z, battery = self.state
@@ -453,3 +453,29 @@ class DroneEnv(gym.Env):
     def get_coverage_rate(self):
         coverage_rate=100-self.relevance_map.sum()*100/512
         return coverage_rate
+    
+
+    def _check_map(self):
+        rel_map=self.initial_rm
+        if not('numpy.ndarray' in str(type(rel_map))):
+            raise TypeError("The relevance map is not defined correctly. It should be numpy.array")
+        
+        ncol, nrow = rel_map.shape
+        
+        if (ncol<10) or (ncol<10):
+            raise ValueError("The relevance map is too small. The min size is 10x10")
+        
+        
+    def _check_bases(self):
+        rel_map=self.initial_rm
+        bs=self.base_stations
+        
+        if not('numpy.ndarray' in str(type(bs))):
+            raise TypeError("The base station map is not defined correctly. It should be numpy.array")
+        
+        if (bs.shape != rel_map.shape):
+            raise ValueError("The base station map should be the relevance map size")    
+        
+        m,n = self.base_coord.shape
+        if m < 1:
+            raise ValueError("Minimum one base station should be defined")              
