@@ -149,23 +149,26 @@ class DroneEnv(gym.Env):
         self.state = None
         self.state_matrix = None
         
-
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def get_map(self,rel_map):
-        self.relevance_map=rel_map
-        self.initial_rm = rel_map
-        ncol, nrow = rel_map.shape
+        "Importing the relevance map to the enviroment"
+        self.relevance_map = rel_map # NumPy array
+        self.initial_rm = rel_map # The initial map doesn't change every step 
+        ncol, nrow = rel_map.shape # Map size
         self.x_max=ncol-1
         self.y_max=nrow-1
         
     def get_bases(self,bs):
-        self.base_stations=bs
+        "Importing the base stations map to the enviroment"        
+        self.base_stations=bs # NumPy array
         ncol, nrow = bs.shape
+        
+        # Getting a list of base station coordinates:
         x=[]
-        y=[]
+        y=[] 
         for i in range(0,ncol-1):
             for j in range(0,nrow-1):
                 if bs[i][j]==100:
@@ -177,41 +180,13 @@ class DroneEnv(gym.Env):
         self.base_coord=Coord.T
         
         return self.base_coord    
-    
-    
-    def _get_cameraspot(self):
-        
-        x, y, z, battery = self.state
-        c=z # *math.tan(self.cam_angle))
-
-        x_cam_min = x-c
-        x_cam_max = x+c
-             
-        y_cam_min = y-c
-        y_cam_max = y+c
-
-        p1=[x_cam_min,y_cam_max]
-        p2=[x_cam_min,y_cam_min]
-        p3=[x_cam_max,y_cam_min]
-        p4=[x_cam_max,y_cam_max]
-                
-        tmp_cameraspot=[p1,p2,p3,p4]
-
-        ncol=self.x_max+1
-        nrow=self.y_max+1
-        
-        cam_matrix =np.zeros((ncol,nrow))
-        cam_matrix[x_cam_min:x_cam_max+1,y_cam_min:y_cam_max+1]=battery
-
-        self.state_matrix = cam_matrix
-                
-        return tmp_cameraspot
-
-        
-    
+           
     def reset(self):
-        self._check_map()
-        self._check_bases()            
+        "Reseting the enviroment: initial map, start position"
+        
+        # get_map(_) and get_bases(_) methods should be previously done:
+        self._check_map() # check if the map is correctly downloaded
+        self._check_bases() # check if the bases are correctly downloaded   
         
         # Start from one of the base stations:
         m,n = self.base_coord.shape
@@ -225,9 +200,136 @@ class DroneEnv(gym.Env):
         # Define the initial relevance map
         self.relevance_map = np.array(self.initial_rm)
             
-        return self.state_matrix,  np.array(self.cameraspot)    
+        return self.state_matrix,  np.array(self.cameraspot)   
+    
+    def step(self, action):
+        "One state-action step"
+        
+        # Check if the selected action is in the set of actions: 
+        err_msg = "%r (%s) invalid" % (action, type(action))
+        assert self.action_space.contains(action), err_msg    
+    
+        # Saving the previous state:
+        old_state = self.state        
+        old_camera_spot = self._get_cameraspot()
 
-    def get_distance(self, state):
+        # Actualize the state with a new action
+        new_state = self._take_action(action)
+        new_cameraspot = self._get_cameraspot()
+        
+        # Check if the agent inside the map limits and it has some battery
+        done = self._check_limits()
+        
+        # Observation tuple for output:
+        self.observation = self.state_matrix, self.state, self.cameraspot
+        
+        # Calculating the reward funcion:
+        reward = self._get_reward(old_state, new_state, old_camera_spot, new_cameraspot)
+        
+        # Zeroing the observed values:
+        self._zero_rel_map(old_camera_spot)
+        
+        return self.observation, reward, done, {}
+    
+    def render(self, mode='human', show=True):
+        if not self.state:
+            return
+        screen_width = 640
+        screen_height = 640
+
+        world_width = self.x_max - self.x_min
+        scale = screen_width/world_width
+    
+        x = self.state
+        dronex = x[0] * scale
+        droney = x[1] * scale
+        dronez = (x[2]*2+1) * scale
+        red = (100-x[3])/100
+        green = x[3]/100
+        blue = 0
+    
+        drone_width = 40.0
+        drone_len = 40.0
+
+        if self.viewer is None:
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+
+            l, r, t, b = -drone_width / 2, drone_width / 2, drone_len / 2, -drone_len / 2
+            drone = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            self.drone_trans = rendering.Transform()
+            self.map_trans = rendering.Transform()
+            self.drone_color = drone.attrs[0]
+            drone.add_attr(self.drone_trans)
+            self.map_trans.set_translation(screen_width/2, screen_height/2)
+
+            map_image = self._get_map_image()
+            map_img = rendering.Image(map_image, screen_width, screen_height)
+            map_img.add_attr(self.map_trans)
+            self.viewer.add_geom(map_img)
+
+            self.viewer.add_geom(drone)
+            self.axle = rendering.make_circle(5)
+            self.axle.add_attr(self.drone_trans)
+            self.axle.set_color(0, 0, 0)
+            self.viewer.add_geom(self.axle)
+
+        if self.viewer is not None and show:
+            map_image = self._get_map_image()
+            map_img = rendering.Image(map_image, screen_width, screen_height)
+            map_img.add_attr(self.map_trans)
+            self.viewer.geoms[0] = map_img
+
+        if self.state is None:
+            return None
+
+        # Edit the pole polygon vertex
+        self.drone_color.vec4 = ((red, green, blue, 1.0))
+        self.drone_trans.set_translation(dronex, droney)
+        self.drone_trans.set_scale(dronez/50, dronez/50)
+        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+    
+    def close(self):
+        if self.viewer:
+            self.viewer.close()
+            self.viewer = None    
+
+    def get_coverage_rate(self):
+        "Part of the map already covered in percents"
+        coverage_rate=100-self.relevance_map.sum()*100/512
+        # TODO: Change. This is correct only for 0&1 
+        return coverage_rate            
+                
+    def _get_cameraspot(self):
+        "Calculating the field of view (FOV), the state in matrix format"
+        
+        x, y, z, battery = self.state
+        c=z # *math.tan(self.cam_angle))  
+
+        x_cam_min = x-c
+        x_cam_max = x+c
+             
+        y_cam_min = y-c
+        y_cam_max = y+c
+
+        # the coordinates of angles of FOV:
+        p1=[x_cam_min,y_cam_max]
+        p2=[x_cam_min,y_cam_min]
+        p3=[x_cam_max,y_cam_min]
+        p4=[x_cam_max,y_cam_max]
+        tmp_cameraspot=[p1,p2,p3,p4] 
+
+        ncol=self.x_max+1
+        nrow=self.y_max+1
+        
+        # State to matrix:
+        cam_matrix =np.zeros((ncol,nrow))
+        cam_matrix[x_cam_min:x_cam_max+1,y_cam_min:y_cam_max+1]=battery
+        self.state_matrix = cam_matrix
+                
+        return tmp_cameraspot
+
+    def _get_distance(self, state):
+        "Calculating the shortest distance from the current state to the base"
         min_dist = len(self.relevance_map)
         x, y, _, _ = state
         for bx, by in zip(self.base_x, self.base_y):
@@ -239,7 +341,7 @@ class DroneEnv(gym.Env):
                 min_dist = dist
         return min_dist
 
-    def get_part_relmap_by_camera(self, camera_spot):
+    def _get_part_relmap_by_camera(self, camera_spot):
         camera_spot = np.array(camera_spot)
         x_min = camera_spot[:, 0].min()
         x_max = camera_spot[:, 0].max() + 1
@@ -252,11 +354,13 @@ class DroneEnv(gym.Env):
             return np.array([[-1.0]])
         return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
     
-    def get_reward(self, old_state, new_state, old_camera_spot, new_camera_spot):
+    def _get_reward(self, old_state, new_state, old_camera_spot, new_camera_spot):
+        "The reward formula implementation"
+        
         x, y, z, battery = old_state
-        dist = self.get_distance(new_state)
-
-        n_r = self.get_part_relmap_by_camera(new_camera_spot).sum()
+        dist = self._get_distance(new_state)        
+        n_r = self._get_part_relmap_by_camera(new_camera_spot).sum()
+        
         if n_r < 0:
           #  print("EL nuevo estado esta fuera")
           #  self.relevance_map = np.array(self.initial_rm)
@@ -269,14 +373,14 @@ class DroneEnv(gym.Env):
 
         p = battery - dist < 0
         if p:
-            #print("Too far from base station {0}".format(self.get_distance(old_state) - dist))
-            return 60 * (self.get_distance(old_state) - dist)
+            #print("Too far from base station {0}".format(self._get_distance(old_state) - dist))
+            return 60 * (self._get_distance(old_state) - dist)
         else:
-            c_r = self.get_part_relmap_by_camera(old_camera_spot).sum()
+            c_r = self._get_part_relmap_by_camera(old_camera_spot).sum()
             reward = self.k[new_z] * (n_r - c_r)
             return reward
 
-    def zero_rel_map(self, camera_spot):
+    def _zero_rel_map(self, camera_spot):
         camera_spot = np.array(camera_spot)
         x_min = camera_spot[:, 0].min()
         x_max = camera_spot[:, 0].max() + 1
@@ -285,9 +389,9 @@ class DroneEnv(gym.Env):
         y_max = camera_spot[:, 1].max() + 1
 
         if x_min >= 0 and y_min >= 0:
-            self.relevance_map[x_min:x_max, y_min:y_max] = 0
+            self.relevance_map[x_min:x_max, y_min:y_max] -=1
 
-    def take_action(self, action):
+    def _take_action(self, action):
         x, y, z, battery = self.state
         
         battery -= self.delta_battery
@@ -323,7 +427,7 @@ class DroneEnv(gym.Env):
         self.state = x, y, z, battery
         return self.state
 
-    def check_limits(self):
+    def _check_limits(self):
         x, y, z, battery = self.state        
         inside = bool(
             x < self.x_min
@@ -336,40 +440,11 @@ class DroneEnv(gym.Env):
             )  
         return inside
 
-    
-    def step(self, action):
-        
-        err_msg = "%r (%s) invalid" % (action, type(action))
-        assert self.action_space.contains(action), err_msg    
-    
-        # Saving the previous state:
-        old_state = self.state        
-        old_camera_spot = self._get_cameraspot()
-
-        # Actualize the state with a new action
-        new_state = self.take_action(action)
-        new_cameraspot = self._get_cameraspot()
-        
-        # Check if the agent inside the map limits and it has some battery
-        done = self.check_limits()
-        
-        # Observation tuple for output:
-        self.observation = self.state_matrix, self.state, self.cameraspot
-        
-        # Calculating the reward funcion:
-        reward = self.get_reward(old_state, new_state, old_camera_spot, new_cameraspot)
-        
-        # Zeroing the observed values:
-        self.zero_rel_map(old_camera_spot)
-        
-        return self.observation, reward, done, {}
-
-
-    def get_map_image(self):
+    def _get_map_image(self):
         # make a color map of fixed colors
-        cmap = colors.ListedColormap(['blue', 'green', 'red'])
-        bounds = [0, 1, 3, 5]
-        norm = colors.BoundaryNorm(bounds, cmap.N)
+        #cmap = colors.ListedColormap(['blue', 'green', 'red'])
+        #bounds = [0, 1, 3, 5]
+        #norm = colors.BoundaryNorm(bounds, cmap.N)
         map_image = "tmp.png"
         our_map = np.array(self.relevance_map)
         our_map[self.base_x, self.base_y] = 5
@@ -379,7 +454,8 @@ class DroneEnv(gym.Env):
         ax.set_xticks(np.arange(-0.5, len(our_map) + 0.5, 1))
         ax.set_yticks(np.arange(-0.5, len(our_map) + 0.5, 1))
         plt.subplots_adjust(0, 0, 1, 1, 0, 0)
-        plt.imshow(our_map, cmap=cmap, norm=norm)
+        #plt.imshow(our_map, cmap=cmap, norm=norm)
+        plt.imshow(our_map, interpolation='nearest', cmap=plt.cm.ocean)        
         plt.grid(True)
         ax.axes.xaxis.set_ticklabels([])
         ax.axes.yaxis.set_ticklabels([])
@@ -387,72 +463,6 @@ class DroneEnv(gym.Env):
         plt.close(fig)
 
         return map_image
-    
-    def render(self, mode='human', show=True):
-        if not self.state:
-            return
-        screen_width = 640
-        screen_height = 640
-
-        world_width = self.x_max - self.x_min
-        scale = screen_width/world_width
-    
-        x = self.state
-        dronex = x[0] * scale
-        droney = x[1] * scale
-        dronez = (x[2]*2+1) * scale
-        red = (100-x[3])/100
-        green = x[3]/100
-        blue = 0
-    
-        drone_width = 40.0
-        drone_len = 40.0
-
-        if self.viewer is None:
-            self.viewer = rendering.Viewer(screen_width, screen_height)
-
-            l, r, t, b = -drone_width / 2, drone_width / 2, drone_len / 2, -drone_len / 2
-            drone = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
-            self.drone_trans = rendering.Transform()
-            self.map_trans = rendering.Transform()
-            self.drone_color = drone.attrs[0]
-            drone.add_attr(self.drone_trans)
-            self.map_trans.set_translation(screen_width/2, screen_height/2)
-
-            map_image = self.get_map_image()
-            map_img = rendering.Image(map_image, screen_width, screen_height)
-            map_img.add_attr(self.map_trans)
-            self.viewer.add_geom(map_img)
-
-            self.viewer.add_geom(drone)
-            self.axle = rendering.make_circle(5)
-            self.axle.add_attr(self.drone_trans)
-            self.axle.set_color(0, 0, 0)
-            self.viewer.add_geom(self.axle)
-
-        if self.viewer is not None and show:
-            map_image = self.get_map_image()
-            map_img = rendering.Image(map_image, screen_width, screen_height)
-            map_img.add_attr(self.map_trans)
-            self.viewer.geoms[0] = map_img
-
-        if self.state is None:
-            return None
-
-        # Edit the pole polygon vertex
-        self.drone_color.vec4 = ((red, green, blue, 1.0))
-        self.drone_trans.set_translation(dronex, droney)
-        self.drone_trans.set_scale(dronez/50, dronez/50)
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
-
-    def close(self):
-        if self.viewer:
-            self.viewer.close()
-            self.viewer = None
-   
-    def get_coverage_rate(self):
-        coverage_rate=100-self.relevance_map.sum()*100/512
-        return coverage_rate
     
 
     def _check_map(self):
@@ -464,8 +474,7 @@ class DroneEnv(gym.Env):
         
         if (ncol<10) or (ncol<10):
             raise ValueError("The relevance map is too small. The min size is 10x10")
-        
-        
+          
     def _check_bases(self):
         rel_map=self.initial_rm
         bs=self.base_stations
