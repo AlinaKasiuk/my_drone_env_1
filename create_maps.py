@@ -6,6 +6,12 @@ def build_1s(w, h, name="ones.csv"):
     map = np.ones((w, h))
     df = pd.DataFrame(map)
     df.to_csv(name, index=False, header=False, sep=";")
+    
+    
+def build_10s(w, h, name="tens.csv"):
+    map = np.ones((w, h))*10
+    df = pd.DataFrame(map)
+    df.to_csv(name, index=False, header=False, sep=";")    
 
 
 def build_checkerboard(w, h, c, name="checkerboard.csv"):
@@ -22,4 +28,5 @@ def build_checkerboard(w, h, c, name="checkerboard.csv"):
     
 if __name__ == '__main__':
     #build_1s(32, 32)
-    build_checkerboard(32, 32, 8)
+    build_10s(32, 32)
+    #build_checkerboard(32, 32, 8)

@@ -15,7 +15,7 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
     env = DroneEnv()
 
     # Get relevance map
-    rel_map = np.genfromtxt(map_file, delimiter=';')
+    rel_map =np.genfromtxt(map_file, delimiter=';')
     #rel_map[0, 0] = 0
     #np.savetxt(map_file, rel_map, delimiter=';', fmt='%.1f')
     env.get_map(rel_map)
@@ -28,7 +28,7 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
     print(base_stations)
     base_coord = env.get_bases(base_stations)
     print(base_coord)
-    return env
+    return env, rel_map
 
 
 def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size):
@@ -51,7 +51,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         cnt = 0 # number of moves in an episode
         total_reward = 0
         while not done:
-            env.render(show=False )
+            env.render(show=True )
                        #i > 990)
             cnt += 1
             iter_counts += 1
@@ -148,10 +148,11 @@ def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
 if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
-    m_file = "ones.csv"
+    # m_file = "ones.csv"
+    m_file = "tens.csv"
     #m_file = "map_old.csv"
     #m_file = "checkerboard.csv"
-    env = init_environment(map_file=m_file)
+    env, m = init_environment(map_file=m_file)
     action_eps = 0.6
 
 
@@ -159,9 +160,9 @@ if __name__ == '__main__':
     replace_iter = 32
     iterations = 180
     #
-    table_actions=test_trained_net(env, iterate=400, model_path="drone_model_32_chess.pth")
+    #table_actions=test_trained_net(env, iterate=400, model_path="drone_model_32_chess.pth")
     print(env.get_coverage_rate())    
-    #table, table_actions = train_RL(3000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
+    table, table_actions = train_RL(3000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
     
     
