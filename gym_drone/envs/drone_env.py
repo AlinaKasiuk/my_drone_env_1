@@ -298,7 +298,21 @@ class DroneEnv(gym.Env):
         coverage_rate=100-self.relevance_map.sum()*100/512
         # TODO: Change. This is correct only for 0&1 
         return coverage_rate            
-                
+    
+    def get_part_relmap_by_camera(self, camera_spot):
+        camera_spot = np.array(camera_spot)
+        x_min = camera_spot[:, 0].min()
+        x_max = camera_spot[:, 0].max() + 1
+
+        y_min = camera_spot[:, 1].min()
+        y_max = camera_spot[:, 1].max() + 1
+
+        # out of boundaries
+        if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
+            return np.array([[-1.0]])
+        return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)   
+
+         
     def _get_cameraspot(self):
         "Calculating the field of view (FOV), the state in matrix format"
         
@@ -340,26 +354,13 @@ class DroneEnv(gym.Env):
             if dist < min_dist:
                 min_dist = dist
         return min_dist
-
-    def _get_part_relmap_by_camera(self, camera_spot):
-        camera_spot = np.array(camera_spot)
-        x_min = camera_spot[:, 0].min()
-        x_max = camera_spot[:, 0].max() + 1
-
-        y_min = camera_spot[:, 1].min()
-        y_max = camera_spot[:, 1].max() + 1
-
-        # out of boundaries
-        if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
-            return np.array([[-1.0]])
-        return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
     
     def _get_reward(self, old_state, new_state, old_camera_spot, new_camera_spot):
         "The reward formula implementation"
         
         x, y, z, battery = old_state
         dist = self._get_distance(new_state)        
-        n_r = self._get_part_relmap_by_camera(new_camera_spot).sum()
+        n_r = self.get_part_relmap_by_camera(new_camera_spot).sum()
         
         if n_r < 0:
           #  print("EL nuevo estado esta fuera")
@@ -376,7 +377,7 @@ class DroneEnv(gym.Env):
             #print("Too far from base station {0}".format(self._get_distance(old_state) - dist))
             return 60 * (self._get_distance(old_state) - dist)
         else:
-            c_r = self._get_part_relmap_by_camera(old_camera_spot).sum()
+            c_r = self.get_part_relmap_by_camera(old_camera_spot).sum()
             reward = self.k[new_z] * (n_r - c_r)
             return reward
 
@@ -464,7 +465,6 @@ class DroneEnv(gym.Env):
 
         return map_image
     
-
     def _check_map(self):
         rel_map=self.initial_rm
         if not('numpy.ndarray' in str(type(rel_map))):
