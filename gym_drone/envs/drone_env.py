@@ -309,7 +309,7 @@ class DroneEnv(gym.Env):
 
         # out of boundaries
         if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
-            return np.array([[-1.0]])
+            return np.array([[-100.0]])
         return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)   
 
          
@@ -362,10 +362,10 @@ class DroneEnv(gym.Env):
         dist = self._get_distance(new_state)        
         n_r = self.get_part_relmap_by_camera(new_camera_spot).sum()
         
-        if n_r < 0:
+       # if n_r < 0:
           #  print("EL nuevo estado esta fuera")
           #  self.relevance_map = np.array(self.initial_rm)
-            return -100
+        #    return -100
         _, _, new_z, _ = new_state
         if new_z not in self.k:
          #   self.relevance_map = np.array(self.initial_rm)
