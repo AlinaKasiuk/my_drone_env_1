@@ -1,8 +1,8 @@
 import gym
-import logging
-import math
 import numpy as np
 import cv2
+import cmapy
+
 from gym import error, spaces, utils
 from gym.utils import seeding
 import matplotlib.pyplot as plt
@@ -96,24 +96,22 @@ class DroneEnv(gym.Env):
         # k quality coeficient
         # TODO: define k with a formula
         self.k = {0: 0.5, 1: 1, 2: .875, 3: .75, 4:.625, 5: 0.5}
-        
-        
+
         self.min_battery = 0
         self.max_battery = 200
         
         # One step size
         self.delta_pos = 1
         self.delta_battery = 1
-        
-        
+
         # Initial values
         self.state = None   #initiate state holder
-        self.cameraspot=None
+        self.cameraspot = None
         
         self.episode_over = False
         self.current_episode = -1 
-        self.current_timestep = 0 # -1 because timestep increments before action
-        self.current_pos = [0,0]
+        self.current_timestep = 0   # -1 because timestep increments before action
+        self.current_pos = [0, 0]
         self.action_episode_memory = []
         self.grid_step_max = (self.x_max+1)*(self.y_max+1) - 1 # number of grid squares
         self.max_timestep = 2*self.grid_step_max   # Visits all grid squares twice.
@@ -142,7 +140,7 @@ class DroneEnv(gym.Env):
         # TODO: Is it needed to define the default relevance map?
         
         self.relevance_map = None
-        self.initial_rm=None
+        self.initial_rm = None
 
         self.seed()
         self.viewer = None
@@ -153,17 +151,17 @@ class DroneEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def get_map(self,rel_map):
+    def get_map(self, rel_map):
         "Importing the relevance map to the enviroment"
-        self.relevance_map = rel_map # NumPy array
-        self.initial_rm = rel_map # The initial map doesn't change every step 
-        ncol, nrow = rel_map.shape # Map size
-        self.x_max=ncol-1
-        self.y_max=nrow-1
+        self.relevance_map = np.array(rel_map)    # NumPy array
+        self.initial_rm = np.array(rel_map)   # The initial map doesn't change every step
+        ncol, nrow = rel_map.shape  # Map size
+        self.x_max = ncol-1
+        self.y_max = nrow-1
         
-    def get_bases(self,bs):
-        "Importing the base stations map to the enviroment"        
-        self.base_stations=bs # NumPy array
+    def get_bases(self, bs):
+        " Importing the base stations map to the environment "
+        self.base_stations = bs     # NumPy array
         ncol, nrow = bs.shape
         
         # Getting a list of base station coordinates:
@@ -310,8 +308,7 @@ class DroneEnv(gym.Env):
         # out of boundaries
         if x_min < 0 or y_min < 0 or x_max >= self.relevance_map.shape[0] or y_max >= self.relevance_map.shape[1]:
             return np.array([[-100.0]])
-        return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)   
-
+        return np.array(self.relevance_map[x_min:x_max, y_min:y_max], dtype=np.float)
          
     def _get_cameraspot(self):
         "Calculating the field of view (FOV), the state in matrix format"
@@ -448,7 +445,7 @@ class DroneEnv(gym.Env):
         #norm = colors.BoundaryNorm(bounds, cmap.N)
         map_image = "tmp.png"
         our_map = np.array(self.relevance_map)
-        our_map[self.base_x, self.base_y] = 5
+        our_map[self.base_x, self.base_y] = 10
         our_map = np.rot90(our_map, k=1)
         fig = plt.figure(figsize=(10, 10))
         ax = fig.gca()
@@ -456,7 +453,15 @@ class DroneEnv(gym.Env):
         ax.set_yticks(np.arange(-0.5, len(our_map) + 0.5, 1))
         plt.subplots_adjust(0, 0, 1, 1, 0, 0)
         #plt.imshow(our_map, cmap=cmap, norm=norm)
-        plt.imshow(our_map, interpolation='nearest', cmap=plt.cm.ocean)        
+
+        # our_map += abs(our_map.min())
+        # # our_map /= 256
+        # our_map = our_map.astype(np.uint8)
+        # our_map = cv2.applyColorMap(our_map, cmapy.cmap('viridis'))
+        # our_map[self.base_x, self.base_y] = colors.to_rgb('red')
+        # plt.imshow(our_map)
+
+        plt.imshow(our_map, interpolation='nearest', cmap=plt.cm.nipy_spectral)
         plt.grid(True)
         ax.axes.xaxis.set_ticklabels([])
         ax.axes.yaxis.set_ticklabels([])
