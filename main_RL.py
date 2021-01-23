@@ -35,7 +35,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     #    Initialization
     
     agent = BasicAgent(actions)
-    agent.model = load_model("drone_model_32.pth")
+  #  agent.model = load_model("drone_model_32.pth")
     replay_memory = []
     #
     iter_counts = 0
@@ -51,7 +51,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         cnt = 0 # number of moves in an episode
         total_reward = 0
         while not done:
-            env.render(show=True )
+            env.render(show=False )
                        #i > 990)
             cnt += 1
             iter_counts += 1
@@ -83,7 +83,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         df.loc[i]={'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
-    save_model(agent.model, "drone_model_32_chess.pth")
+    save_model(agent.model, "drone_model_obstacle.pth")
     return df, df_actions
 
 
@@ -136,7 +136,7 @@ def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
     for i in range(iterate):
         env.render(show=True)
                #    i > 190)
-        a, a_type = select_action(model, cs, 0.1)
+        a, a_type = select_action(model, cs, 0)
         observation, reward, done, _ = env.step(a)
         cr=env.get_coverage_rate()
         x,y,z, bl=env.state
@@ -149,8 +149,9 @@ if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
     # m_file = "ones.csv"
-    m_file = "tens.csv"
-    #m_file = "map_old.csv"
+    # m_file = "tens.csv"
+    
+    m_file = "obstacles.csv"
     #m_file = "checkerboard.csv"
     env, m = init_environment(map_file=m_file)
     action_eps = 0.6
@@ -160,11 +161,11 @@ if __name__ == '__main__':
     replace_iter = 32
     iterations = 180
     #
-    #table_actions=test_trained_net(env, iterate=400, model_path="drone_model_32_chess.pth")
+#    table_actions_test=test_trained_net(env, iterate=400, model_path="drone_model_obstacle.pth")
     print(env.get_coverage_rate())    
     table, table_actions = train_RL(3000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
     env.close() 
     
     
-   #table.to_csv('episodes.csv', sep=';', index = False, header=True)
-    table_actions.to_csv ('actions_test.csv', sep=';', index = False, header=True)
+    #table.to_csv('episodes.csv', sep=';', index = False, header=True)
+    table_actions.to_csv ('actions_test_new55.csv', sep=';', index = False, header=True)
