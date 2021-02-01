@@ -174,9 +174,9 @@ if __name__ == '__main__':
     
     model_path=False
     # Cuantos episodios correr en seguido: 
-    episodes=10
+    episodes=1000
     # Cuantos episodios correr en total:     
-    all_episodes=episodes*5
+    all_episodes=episodes*15
     for num_episode in range(episodes,all_episodes,episodes):
         table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, num_episode)    
         model_path="models\\model_{}.pth".format(num_episode)
