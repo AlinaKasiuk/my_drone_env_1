@@ -31,11 +31,11 @@ def init_environment(map_file='map.csv', stations_file='bs.csv'):
     return env, rel_map
 
 
-def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size):
+def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size, model_path, num_episode):
     #    Initialization
-    
+    start_num=num_episode-episodes
     agent = BasicAgent(actions)
-  # agent.model = load_model("drone_model_32.pth")
+    if model_path: agent.model = load_model(model_path)
     replay_memory = []
     #
     iter_counts = 0
@@ -43,7 +43,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
     for i in range(episodes):
         # env.render(show=True)
-        print("episode No", i)
+        print("episode No", start_num+i)
         # the current state is the initial state
         state_matrix, cameraspot = env.reset()
         cs = get_current_state(state_matrix, cameraspot)
@@ -61,7 +61,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
             observation, reward, done, _ = env.step(a)
             if cnt > 400:
                 done = True
-            df_actions.loc[iter_counts] = {'Episode': i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
+            df_actions.loc[iter_counts] = {'Episode': start_num+i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
             total_reward += reward
             # if done and cnt < 200:
             #     reward = -1000
@@ -78,10 +78,11 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
                     agent.replace_target_network()
             cs = new_state
             
-        df.loc[i] = {'Episode': i, 'Number of steps': cnt, 'Total reward': total_reward}
+        df.loc[i] = {'Episode': start_num+i, 'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
-    save_model(agent.model, "drone_model_obstacle.pth")
+    path="models\\model_{}.pth".format(num_episode)
+    save_model(agent.model, path)
     return df, df_actions
 
 
@@ -149,6 +150,8 @@ if __name__ == '__main__':
     # m_file = "ones.csv"
     # m_file = "tens.csv"
     
+    
+    
     m_file = "obstacles.csv"
     # m_file = "checkerboard.csv"
     env, m = init_environment(map_file=m_file)
@@ -160,9 +163,24 @@ if __name__ == '__main__':
 
     # table_actions_test = test_trained_net(env, iterate=400, model_path="drone_model_obstacle.pth")
     # table_actions_test = test_trained_net(env, iterate=400, model_path="drone_model_32.pth")
-#     print(env.get_coverage_rate())
-    table, table_actions = train_RL(3000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
-#     env.close()
-#
-#     # table.to_csv('episodes.csv', sep=';', index = False, header=True)
-#     table_actions.to_csv ('actions_test_new55.csv', sep=';', index = False, header=True)
+    #     print(env.get_coverage_rate())
+    #   table, table_actions = train_RL(30000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
+    #     env.close()
+    #
+    #     # table.to_csv('episodes.csv', sep=';', index = False, header=True)
+    #     table_actions.to_csv ('actions_test_new55.csv', sep=';', index = False, header=True)
+    #________________________________________________________________________________________________
+    #
+    
+    model_path=False
+    # Cuantos episodios correr en seguido: 
+    episodes=10
+    # Cuantos episodios correr en total:     
+    all_episodes=episodes*5
+    for num_episode in range(episodes,all_episodes,episodes):
+        table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, num_episode)    
+        model_path="models\\model_{}.pth".format(num_episode)
+        csv_path="tables\\table_{}.csv".format(num_episode)
+        table_actions.to_csv (csv_path, sep=';', index = False, header=True)
+    env.close()
+
