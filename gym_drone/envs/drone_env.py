@@ -284,7 +284,7 @@ class DroneEnv(gym.Env):
         self.drone_color.vec4 = ((red, green, blue, 1.0))
         self.drone_trans.set_translation(dronex, droney)
         self.drone_trans.set_scale(dronez/50, dronez/50)
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+        return self.viewer.render(return_rgb_array=mode == 'rgb_array')  
     
     def close(self):
         if self.viewer:
