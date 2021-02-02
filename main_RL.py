@@ -8,12 +8,32 @@ from random import random
 from cnn.basic_agent import BasicAgent
 from cnn.structure import DroneQNet
 from gym_drone.envs.drone_env import DroneEnv
+from create_maps import Map
 from constants import IMG_H, IMG_W, actions
 
 
 def init_environment(map_file='map.csv', stations_file='bs.csv'):
     env = DroneEnv()
 
+    # Get relevance map
+    rel_map = np.genfromtxt(map_file, delimiter=';')
+
+    # Get base stations
+    # base_stations = np.genfromtxt(stations_file, delimiter=';', dtype='int')
+    base_stations = np.zeros_like(rel_map)
+    mid_x, mid_y = int(base_stations.shape[0]/2), int(base_stations.shape[1]/2)
+    base_stations[mid_x, mid_y] = 100
+
+    rel_map[mid_x-5:mid_x+6, mid_y-5:mid_y+6] = 0
+    print(base_stations)
+    base_coord = env.get_bases(base_stations)
+    print(base_coord)
+    env.get_map(rel_map)
+    return env, rel_map
+
+
+def reload_map(env, map_file='map.csv', stations_file='bs.csv'):
+    
     # Get relevance map
     rel_map = np.genfromtxt(map_file, delimiter=';')
 
@@ -147,30 +167,15 @@ def test_trained_net(env, iterate=50, model_path="drone_model.pth"):
 if __name__ == '__main__':
     # PARAMS
     # episodes, iterations, env, action_epsilon, epsilon_decrease, batch_size
-    # m_file = "ones.csv"
-    # m_file = "tens.csv"
-    
-    
-    
-    m_file = "obstacles.csv"
-    # m_file = "checkerboard.csv"
-    env, m = init_environment(map_file=m_file)
     action_eps = 0.6
     batch_s = 16
     replace_iter = 32
-    iterations = 180
-    #
-
-    # table_actions_test = test_trained_net(env, iterate=400, model_path="drone_model_obstacle.pth")
-    # table_actions_test = test_trained_net(env, iterate=400, model_path="drone_model_32.pth")
-    #     print(env.get_coverage_rate())
-    #   table, table_actions = train_RL(30000, iterations, replace_iter, env, action_eps, 0.01, batch_s)
-    #     env.close()
-    #
-    #     # table.to_csv('episodes.csv', sep=';', index = False, header=True)
-    #     table_actions.to_csv ('actions_test_new55.csv', sep=';', index = False, header=True)
-    #________________________________________________________________________________________________
-    #
+    iterations = 180    
+    
+    
+    enviroment = DroneEnv()
+    m_file = "obstacles.csv"
+    rel_map=Map(32,32, m_file)
     
     model_path=False
     # Cuantos episodios correr en seguido: 
@@ -178,9 +183,15 @@ if __name__ == '__main__':
     # Cuantos episodios correr en total:     
     all_episodes=episodes*15
     for num_episode in range(episodes,all_episodes,episodes):
+        new_map=rel_map.map_reset(maptype="Random",obstracles=True)
+        env, m = reload_map(enviroment,map_file=m_file)
+        
         table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, num_episode)    
         model_path="models\\model_{}.pth".format(num_episode)
         csv_path="tables\\table_{}.csv".format(num_episode)
         table_actions.to_csv (csv_path, sep=';', index = False, header=True)
-    env.close()
+        new_map=rel_map.map_reset(maptype="Random",obstracles=True)
+        env.close() 
+        
+
 
