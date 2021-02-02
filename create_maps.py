@@ -2,50 +2,68 @@ import numpy as np
 import pandas as pd
 from random import randint
 
+class Map:
 
-def build_1s(w, h, name="ones.csv"):
-    map = np.ones((w, h))
-    df = pd.DataFrame(map)
-    df.to_csv(name, index=False, header=False, sep=";")
+    def __init__(self, wigth, height, name="map.csv"):
+        self.h = height
+        self.w = wigth
+
+        self.rel_map = np.zeros((wigth, height))
+        self.file_name=name
+        self.maptypes= {"Filled", "Checkerboard", "Random"}        
+            
+    def safe_to_csv(self):
+        df = pd.DataFrame(self.rel_map)
+        df.to_csv(self.file_name, index=False, header=False, sep=";")        
+       
+    def filled_map(self, value):
+        self.rel_map = np.ones((self.w, self.h))*value
+        return self.rel_map       
+        
+    def checkerboard_map(self, max_val, min_val, step):
+        self.rel_map = np.ones((self.w, self.h))*self.min_val    
+        for i in range (self.w):
+            for j in range (self.h):
+                if (i%(2*step)==0):
+                    if (j%(2*step)==0):
+                        self.rel_map[i:(i+step),j:(j+step)]=max_val
+                        self.rel_map[(i+step):(i+2*step),(j+step):(j+2*step)]=max_val                       
+        return self.rel_map 
+    
+    def random_map(self, max_val, min_val):    
+        for i in range (self.w):
+            for j in range (self.h):
+                self.rel_map[i,j]=randint(min_val ,max_val)                       
+        return self.rel_map 
+
+    def add_obstacles(self, obs_value, obs_n, obs_max_radius):
+        for i in range(obs_n):
+            x = randint(0, self.w)
+            y = randint(0, self.h)
+            radius = randint(0, obs_max_radius)
+            self.rel_map[x - radius:x + radius + 1, y - radius:y + radius + 1] = obs_value    
+            
+        
+    def map_reset(self, maptype="Filled", max_value=10, min_value=0, checker_step=8, obstracles=False, obs_n=10, obs_max_radius=4, obs_value=-100):
+        self.max=max_value
+        self.min=min_value
+        
+        if maptype in self.maptypes:
+            if maptype=="Filled":
+                self.filled_map(max_value)
+            if maptype=="Checkerboard":
+                self.checkerboard_map(max_value, min_value, checker_step)
+            if maptype=="Random":
+                self.random_map(max_value, min_value)
+        else:
+            raise ValueError("The maptype is incorrect")     
+        
+        if obstracles:
+            self.add_obstacles(obs_value, obs_n, obs_max_radius)
+            
+        self.safe_to_csv()
+        
+        return self.rel_map                  
+                
     
     
-def build_10s(w, h, name="tens.csv"):
-    map = np.ones((w, h))*10
-    df = pd.DataFrame(map)
-    df.to_csv(name, index=False, header=False, sep=";")    
-
-
-def build_checkerboard(w, h, c, name="checkerboard.csv"):
-    map = np.zeros((w,h),dtype=int) 
-    for i in range (w):
-        for j in range (h):
-            if (i%(2*c)==0):
-                if (j%(2*c)==0):
-                    map[i:(i+c),j:(j+c)]=1
-                    map[(i+c):(i+2*c),(j+c):(j+2*c)]=1                    
-    df = pd.DataFrame(map)
-    df.to_csv(name, index=False, header=False, sep=";")
-
-
-def build_random_obstacle_maps(w, h, obs_n, obs_max_radius, name="obstacles.csv", fill_value=10, obs_value=-100):
-    rel_map = np.ones((w, h))*fill_value
-    add_obstacles(rel_map, obs_n, obs_max_radius, obs_value=-100)
-    df = pd.DataFrame(rel_map)
-    df.to_csv(name, index=False, header=False, sep=";")
-
-
-def add_obstacles(rel_map, obs_n, obs_max_radius, obs_value=-100):
-    w, h = rel_map.shape
-    for i in range(obs_n):
-        x = randint(0, w)
-        y = randint(0, h)
-        radius = randint(0, obs_max_radius)
-        rel_map[x - radius:x + radius + 1, y - radius:y + radius + 1] = obs_value
-
-
-if __name__ == '__main__':
-    # build_1s(32, 32)
-    # build_10s(32, 32)
-    # build_checkerboard(32, 32, 8)
-
-    build_random_obstacle_maps(32, 32, 12, 4, fill_value=10, obs_value=-100)
