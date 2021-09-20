@@ -1,4 +1,4 @@
-# My first custom drone environment
+# My custom drone environment
 
 ### Description:
 A camera-equipped UAV can fly over the environment to be monitored to optimize the visual coverage of high-relevance areas. 
