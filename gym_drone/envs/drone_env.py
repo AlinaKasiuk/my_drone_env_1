@@ -1,12 +1,9 @@
 import gym
 import numpy as np
-import cv2
-import cmapy
 
-from gym import error, spaces, utils
+from gym import spaces
 from gym.utils import seeding
 import matplotlib.pyplot as plt
-from matplotlib import colors
 from gym_drone.envs import rendering
 
 
@@ -445,7 +442,7 @@ class DroneEnv(gym.Env):
         #norm = colors.BoundaryNorm(bounds, cmap.N)
         map_image = "tmp.png"
         our_map = np.array(self.relevance_map)
-        our_map[self.base_x, self.base_y] = 10
+        our_map[self.base_x, self.base_y] = 100
         our_map = np.rot90(our_map, k=1)
         fig = plt.figure(figsize=(10, 10))
         ax = fig.gca()
