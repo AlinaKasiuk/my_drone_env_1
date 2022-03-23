@@ -11,27 +11,6 @@ from gym_drone.envs.drone_env import DroneEnv
 from create_maps import Map
 from constants import IMG_H, IMG_W, actions
 
-
-def init_environment(map_file='map.csv', stations_file='bs.csv'):
-    env = DroneEnv()
-
-    # Get relevance map
-    rel_map = np.genfromtxt(map_file, delimiter=';')
-
-    # Get base stations
-    # base_stations = np.genfromtxt(stations_file, delimiter=';', dtype='int')
-    base_stations = np.zeros_like(rel_map)
-    mid_x, mid_y = int(base_stations.shape[0]/2), int(base_stations.shape[1]/2)
-    base_stations[mid_x, mid_y] = 100
-
-    rel_map[mid_x-5:mid_x+6, mid_y-5:mid_y+6] = 0
-    print(base_stations)
-    base_coord = env.get_bases(base_stations)
-    print(base_coord)
-    env.get_map(rel_map)
-    return env, rel_map
-
-
 def reload_map(env, map_file='map.csv', stations_file='bs.csv'):
     
     # Get relevance map
@@ -42,13 +21,13 @@ def reload_map(env, map_file='map.csv', stations_file='bs.csv'):
     base_stations = np.zeros_like(rel_map)
     mid_x, mid_y = int(base_stations.shape[0]/2), int(base_stations.shape[1]/2)
     base_stations[mid_x, mid_y] = 100
-
-    rel_map[mid_x-5:mid_x+6, mid_y-5:mid_y+6] = 0
-    print(base_stations)
-    base_coord = env.get_bases(base_stations)
-    print(base_coord)
+    
+  # Add zero space around the base
+    neutral_space=0
+    rel_map[mid_x-neutral_space:mid_x+neutral_space+1, mid_y-neutral_space:mid_y+neutral_space+1] = 0 
+    env.get_bases(base_stations)
     env.get_map(rel_map)
-    return env, rel_map
+    return env
 
 
 def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size, model_path, num_episode):
@@ -71,7 +50,7 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         cnt = 0     # number of moves in an episode
         total_reward = 0
         while not done:
-            env.render(show=False)
+            env.render(show=True)
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
@@ -174,23 +153,25 @@ if __name__ == '__main__':
     
     
     enviroment = DroneEnv()
-    m_file = "obstacles.csv"
+    m_file = "map.csv"
     rel_map=Map(32,32, m_file)
     
     model_path=False
     # Cuantos episodios correr en seguido: 
-    episodes=1000
-    # Cuantos episodios correr en total:     
-    all_episodes=episodes*15
+    episodes=5
+    # Cuantos veces cambiar la mapa:   
+    change_n=1
+    # Cuantos episodios correr en total:    
+    all_episodes=episodes*(change_n+1)
     for num_episode in range(episodes,all_episodes,episodes):
-        new_map=rel_map.map_reset(maptype="Random",obstracles=True)
-        env, m = reload_map(enviroment,map_file=m_file)
+        new_map=rel_map.map_reset(maptype="Filled",obstracles=False)
+        env = reload_map(enviroment,map_file=m_file)
         
         table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, num_episode)    
         model_path="models\\model_{}.pth".format(num_episode)
         csv_path="tables\\table_{}.csv".format(num_episode)
         table_actions.to_csv (csv_path, sep=';', index = False, header=True)
-        new_map=rel_map.map_reset(maptype="Random",obstracles=True)
+   #     new_map=rel_map.map_reset(maptype="Random",obstracles=True)
         env.close() 
         
 
