@@ -4,6 +4,9 @@ import pandas as pd
 import math
 import cv2
 from random import random
+import time
+import datetime
+import os
 
 from cnn.basic_agent import BasicAgent
 from cnn.structure import DroneQNet
@@ -30,7 +33,7 @@ def reload_map(env, map_file='map.csv', stations_file='bs.csv'):
     return env
 
 
-def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size, model_path, num_episode):
+def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsilon_decrease, batch_size, model_path, new_model_path, num_episode):
     #    Initialization
     start_num=num_episode-episodes
     agent = BasicAgent(actions)
@@ -38,8 +41,8 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
     replay_memory = []
     #
     iter_counts = 0
-    df = pd.DataFrame(columns=['Episode', 'Number of steps', 'Total reward'])
-    df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type', 'Reward'])
+    df = pd.DataFrame(columns=['Episode', 'Episode duration', 'Number of steps', 'Total reward'])
+    df_actions = pd.DataFrame(columns=['Episode', 'Step', 'Action', 'Action type','Action duration', 'Reward'])
     for i in range(episodes):
         # env.render(show=True)
         print("episode No", start_num+i)
@@ -49,8 +52,10 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
         done = False
         cnt = 0     # number of moves in an episode
         total_reward = 0
+        tic_tic = time.perf_counter()
         while not done:
-            env.render(show=True)
+            tic = time.perf_counter()
+#            env.render(show=True)
             cnt += 1
             iter_counts += 1
             # select random action with eps probability or select action from model
@@ -60,7 +65,6 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
             observation, reward, done, _ = env.step(a)
             if cnt > 400:
                 done = True
-            df_actions.loc[iter_counts] = {'Episode': start_num+i, 'Step': cnt, 'Action': a, 'Action type': a_type,'Reward': reward}
             total_reward += reward
             # if done and cnt < 200:
             #     reward = -1000
@@ -76,12 +80,17 @@ def train_RL(episodes, iterations, replace_iterations, env, action_epsilon, epsi
                 if agent.train_iterations % replace_iterations == 0:
                     agent.replace_target_network()
             cs = new_state
+            toc = time.perf_counter()
+#            print(f"Iteration lasted {toc - tic:0.4f} seconds")
+            a_dur=toc - tic
+            df_actions.loc[iter_counts] = {'Episode': start_num+i, 'Step': cnt, 'Action': a, 'Action type': a_type, 'Action duration': a_dur,'Reward': reward}
             
-        df.loc[i] = {'Episode': start_num+i, 'Number of steps': cnt, 'Total reward': total_reward}
+        toc_toc = time.perf_counter()    
+        ep_dur=toc_toc - tic_tic
+        df.loc[i] = {'Episode': start_num+i, 'Episode duration': ep_dur,'Number of steps': cnt, 'Total reward': total_reward}
         print("Total reward:", total_reward)
         print("Episode finished after {0} timesteps".format(cnt))
-    path="models\\model_{}.pth".format(num_episode)
-    save_model(agent.model, path)
+    save_model(agent.model, new_model_path)
     return df, df_actions
 
 
@@ -156,9 +165,20 @@ if __name__ == '__main__':
     m_file = "map.csv"
     rel_map=Map(32,32, m_file)
     
-    model_path=False
+    # Create a folder to save results
+
+    today_dir=datetime.datetime.today().strftime("%Y-%m-%d-%H.%M")
+    today_tables="tables\\{}".format(today_dir)
+    today_model="models\\{}".format(today_dir)
+    if not os.path.exists(today_tables):
+        os.makedirs(today_tables)
+    if not os.path.exists(today_model):
+        os.makedirs(today_model)
+ 
+    model_path=False   
+    
     # Cuantos episodios correr en seguido: 
-    episodes=5
+    episodes=1000
     # Cuantos veces cambiar la mapa:   
     change_n=1
     # Cuantos episodios correr en total:    
@@ -166,13 +186,14 @@ if __name__ == '__main__':
     for num_episode in range(episodes,all_episodes,episodes):
         new_map=rel_map.map_reset(maptype="Filled",obstracles=False)
         env = reload_map(enviroment,map_file=m_file)
-        
-        table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, num_episode)    
-        model_path="models\\model_{}.pth".format(num_episode)
-        csv_path="tables\\table_{}.csv".format(num_episode)
-        table_actions.to_csv (csv_path, sep=';', index = False, header=True)
-   #     new_map=rel_map.map_reset(maptype="Random",obstracles=True)
-        env.close() 
-        
+    
+        new_model_path=today_model+"\\model_{}.pth".format(num_episode)   
+        table, table_actions = train_RL(episodes, iterations, replace_iter, env, action_eps, 0.01, batch_s, model_path, new_model_path, num_episode)    
+#        csv_path="tables\\table_{}.csv".format(num_episode)
+        model_path=new_model_path
 
+        table_actions.to_csv (today_tables+"\\actions.csv", sep=';', index = False, header=True)
+        table.to_csv (today_tables+"\\episodes.csv", sep=';', index = False, header=True)
+        #     new_map=rel_map.map_reset(maptype="Random",obstracles=True)
+        env.close() 
 
